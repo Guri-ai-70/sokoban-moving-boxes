@@ -1,0 +1,26 @@
+:root {
+  --sb-cyan: #35e0e8;
+  --sb-brick: #b8262c;
+  --sb-brick-dark: #7a1418;
+  --sb-mortar: #e8b84a;
+  --sb-target: #1a1a1a;
+  --sb-player: #f2e9d8;
+  --sb-hud-bg: #000000;
+  --sb-hud-text: #35e0e8;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  color: var(--sb-hud-text);
+  font-family: "Courier New", monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+canvas {
+  image-rendering: pixelated;
+  background: var(--sb-cyan);
+}
