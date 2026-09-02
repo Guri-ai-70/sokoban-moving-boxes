@@ -25,11 +25,11 @@ Five screens, driven by a simple state machine in `main.js`:
 2. **Calling** — a ~0.9s transition: the call button lights up, a ding plays,
    and the doors slide open revealing the elevator interior, then the screen
    advances automatically to the keypad.
-3. **Elevator Keypad** — numbered buttons 1-10 plus CLEAR and ACCEPT, styled
-   like the PDF screenshot. Clicking a floor number then ACCEPT transitions
-   straight into that level (no further animation). All 10 levels are
-   selectable at any time — the game recommends playing 1→10 in order but does
-   not lock levels.
+3. **Elevator Keypad** — numbered buttons for the currently shipped levels
+   (see Levels) plus CLEAR and ACCEPT, styled like the PDF screenshot.
+   Clicking a floor number then ACCEPT transitions straight into that level
+   (no further animation). All levels are selectable at any time — nothing
+   is locked.
 4. **Level Play** — the Sokoban board itself, rendered on canvas at a
    per-level tile size so the whole level fits on screen at once (see
    Levels), with a HUD bar at the bottom showing
@@ -54,30 +54,39 @@ Five screens, driven by a simple state machine in `main.js`:
 
 ## Levels
 
-- All 10 levels are a two-row corridor — a boxes row plus an open bypass
-  row directly above it, so the player can get past boxes that haven't
-  moved yet — wrapped in a decorative outer maze for density, matching the
-  branching brick-corridor look of the PDF's screenshots. Box counts:
-  level 1 has 6, levels 2-3 have 10, and levels 4-10 ramp from 11 up to 14.
-  Two earlier revisions (independent parallel corridors, then dead-end
+- **Scoped to levels 1-3 for now**, at the user's request, so effort goes
+  into matching the reference screenshots closely rather than generating
+  more levels. Levels 4-10 can be added later once 1-3 are confirmed
+  right.
+- Each level is a genuine 2-wide ring maze, not a straight corridor: an
+  outer 2-wide loop with inward pockets, each pocket a box column plus an
+  open bypass column so the player can always get behind a box to push it
+  out of the pocket and around the ring (a 1-wide corridor can't do this —
+  a box in a true dead end can never be pushed back out, and a player
+  can't get "ahead" of an unmoved box in a single-width path). This
+  matches the branching, looped corridor look of the PDF screenshots. Two
+  earlier revisions (independent parallel corridors, then dead-end
   chambers each pairing one box with its own adjacent target) looked
   nothing like real Sokoban and gave every box an obvious, unambiguous
-  single solution; both were dropped.
-- **All targets for a level share one storage room at one end of the
-  corridor** — box-to-target assignment is not 1:1, matching the PDF
-  screenshots (e.g. six targets clustered together, not paired with
-  specific boxes). Boxes are scattered separately along the corridor.
-  Pushing the wrong box first, or too far, can block the room entrance or
-  a later box's path — real risk of a mistake, as opposed to a box sitting
-  right next to its own target.
-- Because boxes can be pushed dozens of cells to reach the shared room, the
+  single solution; both were dropped, then a straight-corridor "shared
+  room" revision was replaced by this real 2D maze once clearer reference
+  images showed the actual looped structure.
+- **All targets for a level share one storage room attached to the
+  ring** — box-to-target assignment is not 1:1, matching each reference
+  screenshot's room shape: level 1 is a 2x3 grid on the right (6 boxes),
+  level 2 is a single 8-target column on the left (8 boxes), level 3 is a
+  3x3 grid on the left (9 boxes). Boxes are scattered separately through
+  the ring's pockets. Pushing the wrong box first, or too far, can block
+  the room entrance or a later box's path — real risk of a mistake, as
+  opposed to a box sitting right next to its own target.
+- Because pushes travel through a loop and can span dozens of cells, the
   exhaustive BFS checker in `tests/solver.js` can't verify these levels in
   reasonable time. Solvability is instead verified by
-  `tests/storage-solver.js`, which simulates the actual correct strategy
-  (push whichever box is closest to the room first, into the farthest
-  still-open target, working inward) against the real engine and checks it
-  reaches the win state — run for every level, on both the pre-decoration
-  core layout and the final wrapped grid.
+  `tests/maze-solver.js`, a generic 2D solve simulator that BFS-pathfinds
+  the player between an explicit sequence of push segments (handling real
+  turns around the ring, not just a straight line) and confirms a
+  concrete, hand-designed solve plan for each level actually reaches the
+  win state against the real engine (`tests/level-solutions.test.js`).
 - Levels are data-only (`levels.js`), decoupled from rendering and engine
   logic — each level is a grid + metadata (name/floor number).
 - **Every level fits entirely on one screen, like the original — no
@@ -87,7 +96,7 @@ Five screens, driven by a simple state machine in `main.js`:
   storage room are always visible together, matching the reference
   screenshots. A camera fallback (centered on the player, clamped to the
   level bounds) only activates for a level too large to stay legible even
-  at the minimum tile size; none of the 10 shipped levels currently need
+  at the minimum tile size; none of the 3 shipped levels currently need
   it. The HUD is drawn in fixed screen space on top either way.
 
 ## HUD & Timer
