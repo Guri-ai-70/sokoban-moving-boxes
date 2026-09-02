@@ -22,5 +22,5 @@ full gameplay are verified manually in a browser per
 `docs/superpowers/specs/2026-09-02-sokoban-moving-boxes-design.md`):
 
 ```bash
-node --test tests/
+node --test "tests/*.test.js"
 ```
