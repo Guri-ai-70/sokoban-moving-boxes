@@ -16,21 +16,27 @@ screenshots of the elevator/keypad scene and levels 1-3.
 
 ## Screens / State Machine
 
-Four screens, driven by a simple state machine in `main.js`:
+Five screens, driven by a simple state machine in `main.js`:
 
-1. **Lobby** — static illustrated scene of the character facing the elevator
+1. **Lobby** — illustrated scene of the character facing the closed elevator
    doors (original art in the same palette family as the PDF reference, not a
-   pixel copy of it). Any key/click opens the keypad.
-2. **Elevator Keypad** — numbered buttons 1-10 plus CLEAR and ACCEPT, styled
-   like the PDF screenshot. Clicking a floor number then ACCEPT triggers a
-   door-opening animation and transitions into that level. All 10 levels are
+   pixel copy of it), with a lit call button beside the doors. Pressing any
+   key or clicking the button calls the elevator.
+2. **Calling** — a ~0.9s transition: the call button lights up, a ding plays,
+   and the doors slide open revealing the elevator interior, then the screen
+   advances automatically to the keypad.
+3. **Elevator Keypad** — numbered buttons 1-10 plus CLEAR and ACCEPT, styled
+   like the PDF screenshot. Clicking a floor number then ACCEPT transitions
+   straight into that level (no further animation). All 10 levels are
    selectable at any time — the game recommends playing 1→10 in order but does
    not lock levels.
-3. **Level Play** — the Sokoban board itself, rendered on canvas, with a HUD
-   bar at the bottom showing `<floor>|moves:<n> pushes:<n> time:<h:mm:ss>`,
-   matching the PDF screenshot's format. Soft looping background music plays
-   throughout this screen.
-4. **Level Complete** — stats card (moves, pushes, time for that attempt) plus
+4. **Level Play** — the Sokoban board itself, rendered on canvas with a
+   scrolling camera centered on the player (levels are larger than the
+   canvas), with a HUD bar at the bottom showing
+   `<floor>|moves:<n> pushes:<n> time:<h:mm:ss>`, matching the PDF
+   screenshot's format. A looping background melody plays throughout this
+   screen.
+5. **Level Complete** — stats card (moves, pushes, time for that attempt) plus
    a short synthesized encouragement sound. A keypress/click returns to the
    Elevator Keypad screen so the player can pick the next floor.
 
@@ -48,20 +54,30 @@ Four screens, driven by a simple state machine in `main.js`:
 
 ## Levels
 
-- All 10 levels are single connected mazes — spiral/winding shafts of
-  dead-end box+target chambers, wrapped in decorative outer loops — matching
-  the branching brick-corridor density of the PDF's screenshots and their
-  box counts: level 1 has 6 boxes, levels 2-3 have 10, and levels 4-10 ramp
-  from 8 up to 10 with progressively larger, more winding mazes. Two earlier
-  revisions (independent parallel corridors, then a handful of small rooms)
-  looked nothing like real Sokoban and were dropped.
-- Every level is verified solvable by the BFS checker in `tests/solver.js`
-  before shipping; box-to-target pairing is flexible (any box may end on any
-  target — the win condition only requires every target to be covered). Each
-  box sits directly adjacent to its target (push distance 1) inside its own
-  dead-end chamber — this is what keeps 10-box levels checkable by
-  exhaustive search in well under a second; the challenge comes from
-  navigating the maze to reach each chamber, not from long pushes.
+- All 10 levels are a two-row corridor — a boxes row plus an open bypass
+  row directly above it, so the player can get past boxes that haven't
+  moved yet — wrapped in a decorative outer maze for density, matching the
+  branching brick-corridor look of the PDF's screenshots. Box counts:
+  level 1 has 6, levels 2-3 have 10, and levels 4-10 ramp from 11 up to 14.
+  Two earlier revisions (independent parallel corridors, then dead-end
+  chambers each pairing one box with its own adjacent target) looked
+  nothing like real Sokoban and gave every box an obvious, unambiguous
+  single solution; both were dropped.
+- **All targets for a level share one storage room at one end of the
+  corridor** — box-to-target assignment is not 1:1, matching the PDF
+  screenshots (e.g. six targets clustered together, not paired with
+  specific boxes). Boxes are scattered separately along the corridor.
+  Pushing the wrong box first, or too far, can block the room entrance or
+  a later box's path — real risk of a mistake, as opposed to a box sitting
+  right next to its own target.
+- Because boxes can be pushed dozens of cells to reach the shared room, the
+  exhaustive BFS checker in `tests/solver.js` can't verify these levels in
+  reasonable time. Solvability is instead verified by
+  `tests/storage-solver.js`, which simulates the actual correct strategy
+  (push whichever box is closest to the room first, into the farthest
+  still-open target, working inward) against the real engine and checks it
+  reaches the win state — run for every level, on both the pre-decoration
+  core layout and the final wrapped grid.
 - Levels are data-only (`levels.js`), decoupled from rendering and engine
   logic — each level is a grid + metadata (name/floor number). Because
   levels can now be larger than the canvas, `render.js` scrolls a camera
@@ -88,10 +104,13 @@ whenever the level restarts or a new level loads.
 
 Synthesized via the Web Audio API — no external audio files, nothing
 copyrighted. Oscillators + gain envelopes generate:
-- **Background music**: a soft, looping ambient chiptune-style track that
-  plays throughout Level Play, starting when the level loads and stopping
-  (or fading out) on completion or when leaving the level. Kept low-volume
-  so it never competes with the sound effects.
+- **Background music**: a looping pentatonic melody, scheduled note by note
+  (not a single sustained drone — that was tried first and was too faint to
+  register as music) at an audible gain, playing throughout Level Play.
+  Muting silences it without stopping the loop, so unmuting mid-level
+  resumes it immediately.
+- **Elevator ding**: a two-note chime when the call button is pressed in
+  the Lobby.
 - **Movement ping**: a short, gentle ping on every player move, whether or
   not a box is pushed.
 - **Box-on-target thunk**: a distinct low thunk, layered on top of the
@@ -109,12 +128,13 @@ Retro palette matching the PDF screenshots: cyan floor, red-brick walls, a
 diamond outline for targets, and the player drawn as a small figure
 (head + shirt + legs) rather than an abstract shape, so it reads as "a
 person moving boxes" like the PDF's character art. Boxes render as a
-3-face pseudo-3D cube (front/top/side). Walls render as extruded blocks
-viewed at a slight angle: any wall tile whose top edge is actually exposed
-(nothing stacked above it) draws a lighter, foreshortened top face before
-its brick front face, which is what makes them read as 3D depth rather
-than a flat top-down tile — matching the angled brick look of the PDF
-screenshots. Rendered on a single `<canvas>` with a fixed tile size; the
+3-face pseudo-3D cube (front/top/side). Walls use the same 3-face cube
+language, viewed at a slight angle: a wall tile draws a lighter top face
+wherever its top edge is actually exposed (nothing stacked above it), a
+brick front face, and a skewed side face wherever its right edge is
+exposed (nothing beside it) — so a wall reads as a genuine stacked 3D
+block, not a flat decal, matching the PDF screenshots. Rendered on a
+single `<canvas>` with a fixed tile size; the
 camera scrolls to follow the player on levels bigger than the canvas (see
 Levels). The lobby/elevator scene is original illustrated art in a
 matching palette, not a reproduction of the PDF's images.
