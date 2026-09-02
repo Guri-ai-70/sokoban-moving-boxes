@@ -48,18 +48,26 @@ Four screens, driven by a simple state machine in `main.js`:
 
 ## Levels
 
-- All 10 levels are single connected mazes — rooms, corridors, and pillar
-  obstacles that force the player to walk around and approach a box from the
-  correct side — matching the branching brick-corridor topology in the PDF's
-  screenshots. Levels 1-3 are small, low box-count introductions in that same
-  style; levels 4-10 are original, increasing in size and box count (up to 5)
-  for a difficulty ramp. An earlier revision used independent parallel
-  corridors per box, which looked nothing like real Sokoban and was dropped.
+- All 10 levels are single connected mazes — spiral/winding shafts of
+  dead-end box+target chambers, wrapped in decorative outer loops — matching
+  the branching brick-corridor density of the PDF's screenshots and their
+  box counts: level 1 has 6 boxes, levels 2-3 have 10, and levels 4-10 ramp
+  from 8 up to 10 with progressively larger, more winding mazes. Two earlier
+  revisions (independent parallel corridors, then a handful of small rooms)
+  looked nothing like real Sokoban and were dropped.
 - Every level is verified solvable by the BFS checker in `tests/solver.js`
   before shipping; box-to-target pairing is flexible (any box may end on any
-  target — the win condition only requires every target to be covered).
+  target — the win condition only requires every target to be covered). Each
+  box sits directly adjacent to its target (push distance 1) inside its own
+  dead-end chamber — this is what keeps 10-box levels checkable by
+  exhaustive search in well under a second; the challenge comes from
+  navigating the maze to reach each chamber, not from long pushes.
 - Levels are data-only (`levels.js`), decoupled from rendering and engine
-  logic — each level is a grid + metadata (name/floor number).
+  logic — each level is a grid + metadata (name/floor number). Because
+  levels can now be larger than the canvas, `render.js` scrolls a camera
+  centered on the player (clamped to the level bounds) instead of drawing
+  the whole grid at a fixed position; the HUD is drawn in fixed screen
+  space on top of the scrolled view.
 
 ## HUD & Timer
 
@@ -97,13 +105,19 @@ copyrighted. Oscillators + gain envelopes generate:
 
 ## Visual Style
 
-Retro palette matching the PDF screenshots: cyan floor, red-brick walls with
-mortar-line detail, diamond-hatched target tiles, and the player drawn as a
-small figure (head + shirt + legs) rather than an abstract shape, so it
-reads as "a person moving boxes" like the PDF's character art. Rendered on
-a single `<canvas>` with a fixed tile size, scaled to fit the window. The
-lobby/elevator scene is original illustrated art in a matching palette, not
-a reproduction of the PDF's images.
+Retro palette matching the PDF screenshots: cyan floor, red-brick walls, a
+diamond outline for targets, and the player drawn as a small figure
+(head + shirt + legs) rather than an abstract shape, so it reads as "a
+person moving boxes" like the PDF's character art. Boxes render as a
+3-face pseudo-3D cube (front/top/side). Walls render as extruded blocks
+viewed at a slight angle: any wall tile whose top edge is actually exposed
+(nothing stacked above it) draws a lighter, foreshortened top face before
+its brick front face, which is what makes them read as 3D depth rather
+than a flat top-down tile — matching the angled brick look of the PDF
+screenshots. Rendered on a single `<canvas>` with a fixed tile size; the
+camera scrolls to follow the player on levels bigger than the canvas (see
+Levels). The lobby/elevator scene is original illustrated art in a
+matching palette, not a reproduction of the PDF's images.
 
 ## Persistence
 
