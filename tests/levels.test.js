@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseLevel } = require('../js/engine.js');
-const { solve } = require('./solver.js');
+const { simulateStorageSolve } = require('./storage-solver.js');
 const { LEVELS } = require('../js/levels.js');
 
 test('there are exactly 10 levels, numbered 1-10 in order', () => {
@@ -21,9 +21,13 @@ test('every level parses with equal box and target counts', () => {
   }
 });
 
-test('every level is solvable', () => {
+test('every level is solvable (shared-storage-room strategy)', () => {
   for (const lvl of LEVELS) {
     const state = parseLevel(lvl.text);
-    assert.equal(solve(state), true, `level ${lvl.floor} is not solvable`);
+    assert.equal(
+      simulateStorageSolve(state),
+      true,
+      `level ${lvl.floor} is not solvable via the storage-room strategy`
+    );
   }
 });
