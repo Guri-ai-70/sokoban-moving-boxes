@@ -201,10 +201,34 @@
     ctx.textAlign = 'left';
   }
 
+  function cameraOffset(state, viewW, viewH) {
+    const levelW = state.width * TILE_SIZE;
+    const levelH = state.height * TILE_SIZE;
+    const targetX = state.player.x * TILE_SIZE + TILE_SIZE / 2 - viewW / 2;
+    const targetY = state.player.y * TILE_SIZE + TILE_SIZE / 2 - viewH / 2;
+    const maxX = Math.max(0, levelW - viewW);
+    const maxY = Math.max(0, levelH - viewH);
+    return {
+      x: Math.min(Math.max(targetX, 0), maxX),
+      y: Math.min(Math.max(targetY, 0), maxY),
+    };
+  }
+
   function renderLevel(ctx, state, floor, moves, pushes, elapsedMs) {
     const canvas = ctx.canvas;
+    const viewW = canvas.width;
+    const viewH = canvas.height - HUD_HEIGHT;
+
     ctx.fillStyle = cssVar('--sb-cyan');
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cam = cameraOffset(state, viewW, viewH);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, viewW, viewH);
+    ctx.clip();
+    ctx.translate(-cam.x, -cam.y);
 
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
@@ -227,6 +251,8 @@
     }
 
     drawPlayer(ctx, state.player.x * TILE_SIZE, state.player.y * TILE_SIZE);
+
+    ctx.restore();
 
     const hudY = canvas.height - HUD_HEIGHT;
     ctx.fillStyle = cssVar('--sb-hud-bg');
