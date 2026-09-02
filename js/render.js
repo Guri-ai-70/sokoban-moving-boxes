@@ -154,18 +154,39 @@
     ctx.stroke();
   }
 
+  // Woven-crate texture (X crosshatch + a diamond in the middle) on a
+  // pale base — matches the reference screenshots' box art, which is a
+  // basket-weave crate, not a plain painted cube.
+  function drawWoven(ctx, x, y, w, h, lineColor) {
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = Math.max(1, w * 0.07);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
+    ctx.stroke();
+    const cx = x + w / 2, cy = y + h / 2;
+    const r = Math.min(w, h) * 0.34;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r, cy);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx - r, cy);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
   function drawBox(ctx, px, py, ts, onTarget) {
-    const margin = Math.max(2, ts * 0.1);
+    const margin = Math.max(2, ts * 0.08);
     const size = ts - margin * 2;
-    const depth = size * 0.28;
+    const depth = size * 0.22;
     const x = px + margin;
     const y = py + margin + depth;
     const front = size - depth;
 
-    const front_c = onTarget ? '#e0a83a' : '#8a5a2a';
-    const top_c = onTarget ? '#f6cf72' : '#b07f47';
-    const side_c = onTarget ? '#a87a1f' : '#5c3a18';
-    const line_c = onTarget ? '#6b4a10' : '#2e1a0a';
+    const base_c = onTarget ? '#f2d78a' : '#cdeef1';
+    const top_c = onTarget ? '#fbe7ae' : '#e6f8f9';
+    const side_c = onTarget ? '#d9b866' : '#a9d6d9';
+    const line_c = onTarget ? '#7a5a1a' : '#1a2e30';
 
     ctx.strokeStyle = line_c;
     ctx.lineWidth = 1.5;
@@ -193,10 +214,11 @@
     ctx.fill();
     ctx.stroke();
 
-    // front face
-    ctx.fillStyle = front_c;
+    // front face — the woven crate texture
+    ctx.fillStyle = base_c;
     ctx.fillRect(x, y, front, front);
     ctx.strokeRect(x, y, front, front);
+    drawWoven(ctx, x + 1, y + 1, front - 2, front - 2, line_c);
   }
 
   function drawPlayer(ctx, px, py, ts) {
