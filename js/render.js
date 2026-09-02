@@ -16,16 +16,43 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
+  function drawBevelRect(ctx, x, y, w, h, base, light, dark) {
+    ctx.fillStyle = base;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = light;
+    ctx.fillRect(x, y, w, 2);
+    ctx.fillRect(x, y, 2, h);
+    ctx.fillStyle = dark;
+    ctx.fillRect(x, y + h - 2, w, 2);
+    ctx.fillRect(x + w - 2, y, 2, h);
+  }
+
+  const BRICK_ROWS = 3;
+  const MORTAR = '#4a0d0f';
+
   function drawWall(ctx, px, py) {
-    ctx.fillStyle = cssVar('--sb-brick');
+    ctx.fillStyle = MORTAR;
     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-    ctx.strokeStyle = cssVar('--sb-brick-dark');
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
-    ctx.beginPath();
-    ctx.moveTo(px, py + TILE_SIZE / 2);
-    ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE / 2);
-    ctx.stroke();
+
+    const rowH = TILE_SIZE / BRICK_ROWS;
+    for (let row = 0; row < BRICK_ROWS; row++) {
+      const offset = row % 2 === 0 ? 0 : TILE_SIZE / 4;
+      const y = py + row * rowH;
+      const bricksInRow = 2;
+      const brickW = TILE_SIZE / bricksInRow;
+      for (let i = -1; i < bricksInRow; i++) {
+        const x = px + i * brickW + offset;
+        const clippedX = Math.max(x, px);
+        const clippedRight = Math.min(x + brickW, px + TILE_SIZE);
+        const w = clippedRight - clippedX;
+        if (w <= 0) continue;
+        drawBevelRect(ctx, clippedX + 1, y + 1, w - 2, rowH - 2, '#b8342a', '#d65a44', '#7a1a15');
+      }
+    }
+
+    ctx.strokeStyle = '#2a0507';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
   }
 
   function drawTarget(ctx, px, py) {
@@ -46,11 +73,48 @@
   }
 
   function drawBox(ctx, px, py, onTarget) {
-    ctx.fillStyle = onTarget ? '#e0a83a' : '#8a5a2a';
-    ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
-    ctx.strokeStyle = '#3a2510';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+    const margin = 5;
+    const size = TILE_SIZE - margin * 2;
+    const depth = size * 0.28;
+    const x = px + margin;
+    const y = py + margin + depth;
+    const front = size - depth;
+
+    const front_c = onTarget ? '#e0a83a' : '#8a5a2a';
+    const top_c = onTarget ? '#f6cf72' : '#b07f47';
+    const side_c = onTarget ? '#a87a1f' : '#5c3a18';
+    const line_c = onTarget ? '#6b4a10' : '#2e1a0a';
+
+    ctx.strokeStyle = line_c;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+
+    // top face
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + depth, y - depth);
+    ctx.lineTo(x + depth + front, y - depth);
+    ctx.lineTo(x + front, y);
+    ctx.closePath();
+    ctx.fillStyle = top_c;
+    ctx.fill();
+    ctx.stroke();
+
+    // side (right) face
+    ctx.beginPath();
+    ctx.moveTo(x + front, y);
+    ctx.lineTo(x + depth + front, y - depth);
+    ctx.lineTo(x + depth + front, y - depth + front);
+    ctx.lineTo(x + front, y + front);
+    ctx.closePath();
+    ctx.fillStyle = side_c;
+    ctx.fill();
+    ctx.stroke();
+
+    // front face
+    ctx.fillStyle = front_c;
+    ctx.fillRect(x, y, front, front);
+    ctx.strokeRect(x, y, front, front);
   }
 
   function drawPlayer(ctx, px, py) {
