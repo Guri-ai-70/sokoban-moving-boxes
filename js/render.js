@@ -55,36 +55,44 @@
     }
   }
 
-  // Walls render as genuine stacked 3D blocks, like the box: a lighter
-  // "top" face where the block's top edge is exposed (nothing above it),
-  // a brick "front" face, and a skewed "side" face wherever the block's
-  // right edge is exposed (nothing beside it) — the same 3-face cube
-  // language as the box, instead of a flat decal.
+  // Walls render as tall stacked 3D blocks — taller than the box, and
+  // viewed from above at an angle skewed to the right (not a flat
+  // top-down tile): whenever a wall's top edge is exposed (nothing
+  // stacked above it), the block rises above its own grid cell into the
+  // row above (a real vertical extrusion, not just a lighter band) with
+  // a top face and, wherever its right edge is also exposed, a skewed
+  // side face — the same 3-face cube language as the box, just taller.
+  const EXTRUSION_RATIO = 0.4;
+
   function drawWall(ctx, px, py, ts, exposedTop, exposedRight) {
-    const sideW = ts * 0.22;
+    const sideW = ts * 0.24;
+    const extrusion = exposedTop ? ts * EXTRUSION_RATIO : 0;
+    const blockTop = py - extrusion;
+    const blockH = ts + extrusion;
+
     ctx.fillStyle = MORTAR;
-    ctx.fillRect(px, py, ts, ts);
+    ctx.fillRect(px, blockTop, ts, blockH);
 
     const topH = exposedTop ? ts * TOP_RATIO : 0;
     const frontW = exposedRight ? ts - sideW : ts;
 
     if (exposedTop) {
-      brickRow(ctx, px, py, frontW, topH, ['#d9604a', '#f4977f', '#a83a28']);
+      brickRow(ctx, px, blockTop, frontW, topH, ['#d9604a', '#f4977f', '#a83a28']);
       if (exposedRight) {
         ctx.fillStyle = '#c04a36';
         ctx.beginPath();
-        ctx.moveTo(px + frontW, py);
-        ctx.lineTo(px + ts, py + sideW * 0.6);
-        ctx.lineTo(px + ts, py + topH);
-        ctx.lineTo(px + frontW, py + topH);
+        ctx.moveTo(px + frontW, blockTop);
+        ctx.lineTo(px + ts, blockTop + sideW * 0.6);
+        ctx.lineTo(px + ts, blockTop + topH);
+        ctx.lineTo(px + frontW, blockTop + topH);
         ctx.closePath();
         ctx.fill();
       }
     }
 
-    const frontY = py + topH;
-    const frontH = ts - topH;
-    const rows = exposedTop ? 2 : BRICK_ROWS;
+    const frontY = blockTop + topH;
+    const frontH = blockH - topH;
+    const rows = exposedTop ? 3 : BRICK_ROWS;
     const rowH = frontH / rows;
     for (let row = 0; row < rows; row++) {
       const y = frontY + row * rowH;
@@ -92,7 +100,7 @@
     }
 
     if (exposedRight) {
-      const sideRows = exposedTop ? 2 : BRICK_ROWS;
+      const sideRows = exposedTop ? 3 : BRICK_ROWS;
       const sideRowH = frontH / sideRows;
       for (let row = 0; row < sideRows; row++) {
         const y0 = frontY + row * sideRowH;
@@ -126,7 +134,7 @@
 
     ctx.strokeStyle = '#2a0507';
     ctx.lineWidth = 1;
-    ctx.strokeRect(px + 0.5, py + 0.5, ts - 1, ts - 1);
+    ctx.strokeRect(px + 0.5, blockTop + 0.5, ts - 1, blockH - 1);
   }
 
   function drawTarget(ctx, px, py, ts) {
@@ -272,19 +280,26 @@
     ctx.clip();
     ctx.translate(clampedX, clampedY);
 
+    // Walls first (their tops extrude upward into the row above, drawn
+    // top-to-bottom so a taller wall correctly overdraws whatever's just
+    // above it). Targets are drawn in their own pass afterward — they're
+    // flat floor markings, so they must never end up partly covered by a
+    // neighboring wall's extrusion the way they would if drawn in the
+    // same pass.
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
-        const px = x * ts;
-        const py = y * ts;
         const k = `${x},${y}`;
         if (state.walls.has(k)) {
           const exposedTop = !state.walls.has(`${x},${y - 1}`);
           const exposedRight = !state.walls.has(`${x + 1},${y}`);
-          drawWall(ctx, px, py, ts, exposedTop, exposedRight);
-        } else if (state.targets.has(k)) {
-          drawTarget(ctx, px, py, ts);
+          drawWall(ctx, x * ts, y * ts, ts, exposedTop, exposedRight);
         }
       }
+    }
+
+    for (const t of state.targets) {
+      const [x, y] = t.split(',').map(Number);
+      drawTarget(ctx, x * ts, y * ts, ts);
     }
 
     for (const b of state.boxes) {
