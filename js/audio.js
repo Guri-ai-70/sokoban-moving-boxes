@@ -7,6 +7,9 @@ export function initAudio() {
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
   }
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
 }
 
 function tone(freq, startOffset, duration, type = 'sine', peakGain = 0.15) {

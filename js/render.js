@@ -49,14 +49,35 @@ function drawBox(ctx, px, py, onTarget) {
 }
 
 function drawPlayer(ctx, px, py) {
-  ctx.fillStyle = cssVar('--sb-player');
   const cx = px + TILE_SIZE / 2;
-  const cy = py + TILE_SIZE / 2;
+  const headR = TILE_SIZE * 0.16;
+  const headCy = py + TILE_SIZE * 0.28;
+  const bodyTop = py + TILE_SIZE * 0.4;
+  const bodyW = TILE_SIZE * 0.42;
+  const bodyH = TILE_SIZE * 0.34;
+  const legW = TILE_SIZE * 0.16;
+  const legH = TILE_SIZE * 0.2;
+  const legY = bodyTop + bodyH;
+
+  // legs
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(cx - bodyW / 2, legY, legW, legH);
+  ctx.fillRect(cx + bodyW / 2 - legW, legY, legW, legH);
+
+  // body (shirt)
+  ctx.fillStyle = '#c0392b';
+  ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
+  ctx.strokeStyle = '#5a1a12';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
+
+  // head
+  ctx.fillStyle = cssVar('--sb-player');
   ctx.beginPath();
-  ctx.arc(cx, cy, TILE_SIZE / 3, 0, Math.PI * 2);
+  ctx.arc(cx, headCy, headR, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 }
 
