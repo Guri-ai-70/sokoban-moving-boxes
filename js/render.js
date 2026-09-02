@@ -7,7 +7,8 @@
   const { formatHud } = SokobanHud;
   const { getMuted } = SokobanStorage;
 
-  const TILE_SIZE = 48;
+  const MAX_TILE_SIZE = 48;
+  const MIN_TILE_SIZE = 10;
   const HUD_HEIGHT = 32;
   const MUTE_ICON_SIZE = 28;
   const MUTE_ICON_MARGIN = 8;
@@ -16,9 +17,18 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
+  // Like the original 1987 game, a level always fits entirely on one
+  // screen — no scrolling. The tile size shrinks to whatever fits the
+  // level's width/height into the canvas, instead of a fixed 48px.
+  function computeTileSize(state, viewW, viewH) {
+    const ts = Math.floor(Math.min(viewW / state.width, viewH / state.height));
+    return Math.max(MIN_TILE_SIZE, Math.min(MAX_TILE_SIZE, ts));
+  }
+
   function drawBevelRect(ctx, x, y, w, h, base, light, dark) {
     ctx.fillStyle = base;
     ctx.fillRect(x, y, w, h);
+    if (w < 6 || h < 6) return;
     ctx.fillStyle = light;
     ctx.fillRect(x, y, w, 2);
     ctx.fillRect(x, y, 2, h);
@@ -45,31 +55,27 @@
     }
   }
 
-  const SIDE_W = TILE_SIZE * 0.22;
-
   // Walls render as genuine stacked 3D blocks, like the box: a lighter
   // "top" face where the block's top edge is exposed (nothing above it),
-  // a brick "front" face, and — new — a skewed "side" face wherever the
-  // block's right edge is exposed (nothing beside it), so a wall reads as
-  // a solid extruded block from three visible faces, the same language as
-  // the box cube, instead of a flat decal.
-  function drawWall(ctx, px, py, exposedTop, exposedRight) {
+  // a brick "front" face, and a skewed "side" face wherever the block's
+  // right edge is exposed (nothing beside it) — the same 3-face cube
+  // language as the box, instead of a flat decal.
+  function drawWall(ctx, px, py, ts, exposedTop, exposedRight) {
+    const sideW = ts * 0.22;
     ctx.fillStyle = MORTAR;
-    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+    ctx.fillRect(px, py, ts, ts);
 
-    const topH = exposedTop ? TILE_SIZE * TOP_RATIO : 0;
-    const frontW = exposedRight ? TILE_SIZE - SIDE_W : TILE_SIZE;
+    const topH = exposedTop ? ts * TOP_RATIO : 0;
+    const frontW = exposedRight ? ts - sideW : ts;
 
     if (exposedTop) {
       brickRow(ctx, px, py, frontW, topH, ['#d9604a', '#f4977f', '#a83a28']);
       if (exposedRight) {
-        // top face's far corner is pushed right+down by the side skew,
-        // filling the notch between the top band and the side face
         ctx.fillStyle = '#c04a36';
         ctx.beginPath();
         ctx.moveTo(px + frontW, py);
-        ctx.lineTo(px + TILE_SIZE, py + SIDE_W * 0.6);
-        ctx.lineTo(px + TILE_SIZE, py + topH);
+        ctx.lineTo(px + ts, py + sideW * 0.6);
+        ctx.lineTo(px + ts, py + topH);
         ctx.lineTo(px + frontW, py + topH);
         ctx.closePath();
         ctx.fill();
@@ -77,7 +83,7 @@
     }
 
     const frontY = py + topH;
-    const frontH = TILE_SIZE - topH;
+    const frontH = ts - topH;
     const rows = exposedTop ? 2 : BRICK_ROWS;
     const rowH = frontH / rows;
     for (let row = 0; row < rows; row++) {
@@ -86,26 +92,26 @@
     }
 
     if (exposedRight) {
-      // skewed side face (darker brick courses), same 3-face cube
-      // language as the box's side face
       const sideRows = exposedTop ? 2 : BRICK_ROWS;
       const sideRowH = frontH / sideRows;
       for (let row = 0; row < sideRows; row++) {
         const y0 = frontY + row * sideRowH;
         const y1 = y0 + sideRowH;
-        const skew = SIDE_W * 0.6 * (row / sideRows);
-        const skewNext = SIDE_W * 0.6 * ((row + 1) / sideRows);
+        const skew = sideW * 0.6 * (row / sideRows);
+        const skewNext = sideW * 0.6 * ((row + 1) / sideRows);
         ctx.fillStyle = row % 2 === 0 ? '#7a1a15' : '#5c130f';
         ctx.beginPath();
         ctx.moveTo(px + frontW, y0);
-        ctx.lineTo(px + TILE_SIZE, y0 - skew + SIDE_W * 0.6);
-        ctx.lineTo(px + TILE_SIZE, y1 - skewNext + SIDE_W * 0.6);
+        ctx.lineTo(px + ts, y0 - skew + sideW * 0.6);
+        ctx.lineTo(px + ts, y1 - skewNext + sideW * 0.6);
         ctx.lineTo(px + frontW, y1);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#2a0507';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
+        if (ts >= 16) {
+          ctx.strokeStyle = '#2a0507';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
       }
     }
 
@@ -120,17 +126,17 @@
 
     ctx.strokeStyle = '#2a0507';
     ctx.lineWidth = 1;
-    ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+    ctx.strokeRect(px + 0.5, py + 0.5, ts - 1, ts - 1);
   }
 
-  function drawTarget(ctx, px, py) {
+  function drawTarget(ctx, px, py, ts) {
     ctx.fillStyle = cssVar('--sb-cyan');
-    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+    ctx.fillRect(px, py, ts, ts);
     ctx.strokeStyle = cssVar('--sb-target');
     ctx.lineWidth = 2;
-    const cx = px + TILE_SIZE / 2;
-    const cy = py + TILE_SIZE / 2;
-    const r = TILE_SIZE / 3;
+    const cx = px + ts / 2;
+    const cy = py + ts / 2;
+    const r = ts / 3;
     ctx.beginPath();
     ctx.moveTo(cx, cy - r);
     ctx.lineTo(cx + r, cy);
@@ -140,9 +146,9 @@
     ctx.stroke();
   }
 
-  function drawBox(ctx, px, py, onTarget) {
-    const margin = 5;
-    const size = TILE_SIZE - margin * 2;
+  function drawBox(ctx, px, py, ts, onTarget) {
+    const margin = Math.max(2, ts * 0.1);
+    const size = ts - margin * 2;
     const depth = size * 0.28;
     const x = px + margin;
     const y = py + margin + depth;
@@ -185,15 +191,15 @@
     ctx.strokeRect(x, y, front, front);
   }
 
-  function drawPlayer(ctx, px, py) {
-    const cx = px + TILE_SIZE / 2;
-    const headR = TILE_SIZE * 0.16;
-    const headCy = py + TILE_SIZE * 0.28;
-    const bodyTop = py + TILE_SIZE * 0.4;
-    const bodyW = TILE_SIZE * 0.42;
-    const bodyH = TILE_SIZE * 0.34;
-    const legW = TILE_SIZE * 0.16;
-    const legH = TILE_SIZE * 0.2;
+  function drawPlayer(ctx, px, py, ts) {
+    const cx = px + ts / 2;
+    const headR = ts * 0.16;
+    const headCy = py + ts * 0.28;
+    const bodyTop = py + ts * 0.4;
+    const bodyW = ts * 0.42;
+    const bodyH = ts * 0.34;
+    const legW = ts * 0.16;
+    const legH = ts * 0.2;
     const legY = bodyTop + bodyH;
 
     // legs
@@ -238,19 +244,6 @@
     ctx.textAlign = 'left';
   }
 
-  function cameraOffset(state, viewW, viewH) {
-    const levelW = state.width * TILE_SIZE;
-    const levelH = state.height * TILE_SIZE;
-    const targetX = state.player.x * TILE_SIZE + TILE_SIZE / 2 - viewW / 2;
-    const targetY = state.player.y * TILE_SIZE + TILE_SIZE / 2 - viewH / 2;
-    const maxX = Math.max(0, levelW - viewW);
-    const maxY = Math.max(0, levelH - viewH);
-    return {
-      x: Math.min(Math.max(targetX, 0), maxX),
-      y: Math.min(Math.max(targetY, 0), maxY),
-    };
-  }
-
   function renderLevel(ctx, state, floor, moves, pushes, elapsedMs) {
     const canvas = ctx.canvas;
     const viewW = canvas.width;
@@ -259,35 +252,47 @@
     ctx.fillStyle = cssVar('--sb-cyan');
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const cam = cameraOffset(state, viewW, viewH);
+    const ts = computeTileSize(state, viewW, viewH);
+    const levelPxW = state.width * ts;
+    const levelPxH = state.height * ts;
+
+    // Levels normally shrink to fit the whole thing on screen, like the
+    // original — no scrolling. Only a level too large to stay legible even
+    // at MIN_TILE_SIZE falls back to a camera centered on the player.
+    const fitsW = levelPxW <= viewW;
+    const fitsH = levelPxH <= viewH;
+    const offsetX = fitsW ? (viewW - levelPxW) / 2 : viewW / 2 - (state.player.x + 0.5) * ts;
+    const offsetY = fitsH ? (viewH - levelPxH) / 2 : viewH / 2 - (state.player.y + 0.5) * ts;
+    const clampedX = fitsW ? offsetX : Math.min(0, Math.max(viewW - levelPxW, offsetX));
+    const clampedY = fitsH ? offsetY : Math.min(0, Math.max(viewH - levelPxH, offsetY));
 
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, viewW, viewH);
     ctx.clip();
-    ctx.translate(-cam.x, -cam.y);
+    ctx.translate(clampedX, clampedY);
 
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
-        const px = x * TILE_SIZE;
-        const py = y * TILE_SIZE;
+        const px = x * ts;
+        const py = y * ts;
         const k = `${x},${y}`;
         if (state.walls.has(k)) {
           const exposedTop = !state.walls.has(`${x},${y - 1}`);
           const exposedRight = !state.walls.has(`${x + 1},${y}`);
-          drawWall(ctx, px, py, exposedTop, exposedRight);
+          drawWall(ctx, px, py, ts, exposedTop, exposedRight);
         } else if (state.targets.has(k)) {
-          drawTarget(ctx, px, py);
+          drawTarget(ctx, px, py, ts);
         }
       }
     }
 
     for (const b of state.boxes) {
       const [x, y] = b.split(',').map(Number);
-      drawBox(ctx, x * TILE_SIZE, y * TILE_SIZE, state.targets.has(b));
+      drawBox(ctx, x * ts, y * ts, ts, state.targets.has(b));
     }
 
-    drawPlayer(ctx, state.player.x * TILE_SIZE, state.player.y * TILE_SIZE);
+    drawPlayer(ctx, state.player.x * ts, state.player.y * ts, ts);
 
     ctx.restore();
 
@@ -305,5 +310,5 @@
     return isWon(state);
   }
 
-  return { TILE_SIZE, muteIconRect, renderLevel };
+  return { muteIconRect, renderLevel };
 });
