@@ -30,9 +30,9 @@ Five screens, driven by a simple state machine in `main.js`:
    straight into that level (no further animation). All 10 levels are
    selectable at any time — the game recommends playing 1→10 in order but does
    not lock levels.
-4. **Level Play** — the Sokoban board itself, rendered on canvas with a
-   scrolling camera centered on the player (levels are larger than the
-   canvas), with a HUD bar at the bottom showing
+4. **Level Play** — the Sokoban board itself, rendered on canvas at a
+   per-level tile size so the whole level fits on screen at once (see
+   Levels), with a HUD bar at the bottom showing
    `<floor>|moves:<n> pushes:<n> time:<h:mm:ss>`, matching the PDF
    screenshot's format. A looping background melody plays throughout this
    screen.
@@ -79,11 +79,16 @@ Five screens, driven by a simple state machine in `main.js`:
   reaches the win state — run for every level, on both the pre-decoration
   core layout and the final wrapped grid.
 - Levels are data-only (`levels.js`), decoupled from rendering and engine
-  logic — each level is a grid + metadata (name/floor number). Because
-  levels can now be larger than the canvas, `render.js` scrolls a camera
-  centered on the player (clamped to the level bounds) instead of drawing
-  the whole grid at a fixed position; the HUD is drawn in fixed screen
-  space on top of the scrolled view.
+  logic — each level is a grid + metadata (name/floor number).
+- **Every level fits entirely on one screen, like the original — no
+  scrolling.** `render.js` computes the tile size per level (shrinking
+  within a 10-48px range to fit the level's full width and height into the
+  canvas) instead of using a fixed size, so the scattered boxes and the
+  storage room are always visible together, matching the reference
+  screenshots. A camera fallback (centered on the player, clamped to the
+  level bounds) only activates for a level too large to stay legible even
+  at the minimum tile size; none of the 10 shipped levels currently need
+  it. The HUD is drawn in fixed screen space on top either way.
 
 ## HUD & Timer
 
