@@ -2,10 +2,11 @@
 // X box-on-target, Q player-on-target. See docs/superpowers/specs/
 // 2026-09-02-sokoban-moving-boxes-design.md for the full design.
 //
-// Levels 1-3: a 2-wide ring maze (rooms/pockets connected by an open
-// bypass lane so the player can always get behind a box to push it)
-// with a shared target room attached, matching the reference
-// screenshots (targets clustered together, not paired with boxes).
+// A 2-wide ring maze (rooms/pockets connected by an open bypass lane so
+// the player can always get behind a box to push it) with a shared
+// target room attached, matching the reference screenshots (targets
+// clustered together, not paired with boxes). Boxes are scattered across
+// several rows/columns of the open interior, not lined up in one row.
 // Verified solvable by literally simulating a correct 2D solve — with
 // BFS-pathfound player movement between push segments, so turns/loops
 // are handled, not just straight corridors — against the real engine.
@@ -21,17 +22,15 @@ const LEVELS = [
     floor: 1,
     name: 'The Ring',
     text: [
-      '###################',
-      '#_P_____________###',
-      '#_______________###',
-      '#_______________TT#',
-      '#__B_B_B_B_B_B__TT#',
-      '#_______________TT#',
-      '#___#########___###',
-      '#__###########__###',
-      '#_______________###',
-      '#_______________###',
-      '###################',
+      '####################',
+      '#_P______________###',
+      '#________________###',
+      '#___B____B_B_____TT#',
+      '#___________B____TT#',
+      '#____B__B________TT#',
+      '#________________###',
+      '#________________###',
+      '####################',
     ].join('\n'),
   },
   {
@@ -41,10 +40,10 @@ const LEVELS = [
       '#######################',
       '##__________________P_#',
       '##____________________#',
-      '#T____________________#',
-      '#T___B_B_B_B_B_B_B_B__#',
-      '#T____________________#',
-      '#T____________________#',
+      '#T________B_______B___#',
+      '#T___B________B_______#',
+      '#T____B_____B_________#',
+      '#T______B_______B_____#',
       '#T____________________#',
       '#T____________________#',
       '#T____________________#',
@@ -61,12 +60,10 @@ const LEVELS = [
       '###########################',
       '####____________________P_#',
       '####______________________#',
-      '#TTT______________________#',
-      '#TTT___B_B_B_B_B_B_B_B_B__#',
-      '#TTT______________________#',
-      '####______________________#',
-      '####__##################__#',
-      '####______________________#',
+      '#TTT________B__B______B___#',
+      '#TTT______B______B________#',
+      '#TTT____B___________B_____#',
+      '####_________B____B_______#',
       '####______________________#',
       '###########################',
     ].join('\n'),
@@ -78,11 +75,11 @@ const LEVELS = [
       '############################',
       '#_P______________________###',
       '#________________________###',
-      '#________________________TT#',
-      '#__B_B_B_B_B_B_B_B_B_B___TT#',
-      '#________________________TT#',
-      '#________________________TT#',
-      '#________________________TT#',
+      '#___B__________B_________TT#',
+      '#________B___________B___TT#',
+      '#___________B______B_____TT#',
+      '#_____B_______B__________TT#',
+      '#_______B________B_______TT#',
       '#________________________###',
       '#________________________###',
       '############################',
