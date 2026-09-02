@@ -54,10 +54,11 @@ Five screens, driven by a simple state machine in `main.js`:
 
 ## Levels
 
-- **Scoped to levels 1-3 for now**, at the user's request, so effort goes
+- **Scoped to levels 1-4 for now**, at the user's request, so effort goes
   into matching the reference screenshots closely rather than generating
-  more levels. Levels 4-10 can be added later once 1-3 are confirmed
-  right.
+  more levels. Level 4 (10 boxes, 2x5 room) continues the ramp from level
+  3's 9 boxes, using the same verified template. Levels 5-10 can be added
+  later the same way.
 - Each level is a genuine 2-wide ring maze, not a straight corridor: an
   outer 2-wide loop with inward pockets, each pocket a box column plus an
   open bypass column so the player can always get behind a box to push it
@@ -96,7 +97,7 @@ Five screens, driven by a simple state machine in `main.js`:
   storage room are always visible together, matching the reference
   screenshots. A camera fallback (centered on the player, clamped to the
   level bounds) only activates for a level too large to stay legible even
-  at the minimum tile size; none of the 3 shipped levels currently need
+  at the minimum tile size; none of the 4 shipped levels currently need
   it. The HUD is drawn in fixed screen space on top either way.
 
 ## HUD & Timer
@@ -142,15 +143,17 @@ Retro palette matching the PDF screenshots: cyan floor, red-brick walls, a
 diamond outline for targets, and the player drawn as a small figure
 (head + shirt + legs) rather than an abstract shape, so it reads as "a
 person moving boxes" like the PDF's character art. Boxes render as a
-3-face pseudo-3D cube (front/top/side). Walls use the same 3-face cube
-language, viewed at a slight angle: a wall tile draws a lighter top face
-wherever its top edge is actually exposed (nothing stacked above it), a
-brick front face, and a skewed side face wherever its right edge is
-exposed (nothing beside it) — so a wall reads as a genuine stacked 3D
-block, not a flat decal, matching the PDF screenshots. Rendered on a
-single `<canvas>` with a fixed tile size; the
-camera scrolls to follow the player on levels bigger than the canvas (see
-Levels). The lobby/elevator scene is original illustrated art in a
+3-face pseudo-3D block (front/top/side) with a woven-crate texture on the
+front face — an X crosshatch plus a diamond in the middle on a pale
+base — matching the reference screenshots' basket-weave crate art rather
+than a plain painted cube. Walls use the same 3-face block language,
+viewed at a slight angle: a wall tile draws a lighter top face wherever
+its top edge is actually exposed (nothing stacked above it), a brick
+front face, and a skewed side face wherever its right edge is exposed
+(nothing beside it) — so a wall reads as a genuine stacked 3D block, not
+a flat decal, matching the PDF screenshots. Rendered on a single
+`<canvas>` at a per-level tile size so the whole level fits on screen
+(see Levels). The lobby/elevator scene is original illustrated art in a
 matching palette, not a reproduction of the PDF's images.
 
 ## Persistence
