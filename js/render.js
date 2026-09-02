@@ -45,17 +45,35 @@
     }
   }
 
-  // Walls render as extruded blocks viewed at a slight angle: a lighter,
-  // foreshortened "top" face where the block's top edge is actually
-  // exposed (nothing stacked above it), and the regular brick "front"
-  // face below — this is what reads as 3D instead of a flat top-down tile.
+  const SIDE_W = TILE_SIZE * 0.22;
+
+  // Walls render as genuine stacked 3D blocks, like the box: a lighter
+  // "top" face where the block's top edge is exposed (nothing above it),
+  // a brick "front" face, and — new — a skewed "side" face wherever the
+  // block's right edge is exposed (nothing beside it), so a wall reads as
+  // a solid extruded block from three visible faces, the same language as
+  // the box cube, instead of a flat decal.
   function drawWall(ctx, px, py, exposedTop, exposedRight) {
     ctx.fillStyle = MORTAR;
     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
     const topH = exposedTop ? TILE_SIZE * TOP_RATIO : 0;
+    const frontW = exposedRight ? TILE_SIZE - SIDE_W : TILE_SIZE;
+
     if (exposedTop) {
-      brickRow(ctx, px, py, TILE_SIZE, topH, ['#d9604a', '#f4977f', '#a83a28']);
+      brickRow(ctx, px, py, frontW, topH, ['#d9604a', '#f4977f', '#a83a28']);
+      if (exposedRight) {
+        // top face's far corner is pushed right+down by the side skew,
+        // filling the notch between the top band and the side face
+        ctx.fillStyle = '#c04a36';
+        ctx.beginPath();
+        ctx.moveTo(px + frontW, py);
+        ctx.lineTo(px + TILE_SIZE, py + SIDE_W * 0.6);
+        ctx.lineTo(px + TILE_SIZE, py + topH);
+        ctx.lineTo(px + frontW, py + topH);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
 
     const frontY = py + topH;
@@ -64,12 +82,31 @@
     const rowH = frontH / rows;
     for (let row = 0; row < rows; row++) {
       const y = frontY + row * rowH;
-      brickRow(ctx, px, y, TILE_SIZE, rowH, ['#b8342a', '#d65a44', '#7a1a15'], row % 2 === 1);
+      brickRow(ctx, px, y, frontW, rowH, ['#b8342a', '#d65a44', '#7a1a15'], row % 2 === 1);
     }
 
     if (exposedRight) {
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.fillRect(px + TILE_SIZE - 5, frontY, 5, frontH);
+      // skewed side face (darker brick courses), same 3-face cube
+      // language as the box's side face
+      const sideRows = exposedTop ? 2 : BRICK_ROWS;
+      const sideRowH = frontH / sideRows;
+      for (let row = 0; row < sideRows; row++) {
+        const y0 = frontY + row * sideRowH;
+        const y1 = y0 + sideRowH;
+        const skew = SIDE_W * 0.6 * (row / sideRows);
+        const skewNext = SIDE_W * 0.6 * ((row + 1) / sideRows);
+        ctx.fillStyle = row % 2 === 0 ? '#7a1a15' : '#5c130f';
+        ctx.beginPath();
+        ctx.moveTo(px + frontW, y0);
+        ctx.lineTo(px + TILE_SIZE, y0 - skew + SIDE_W * 0.6);
+        ctx.lineTo(px + TILE_SIZE, y1 - skewNext + SIDE_W * 0.6);
+        ctx.lineTo(px + frontW, y1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#2a0507';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
     }
 
     if (exposedTop) {
@@ -77,7 +114,7 @@
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(px, frontY + 0.5);
-      ctx.lineTo(px + TILE_SIZE, frontY + 0.5);
+      ctx.lineTo(px + frontW, frontY + 0.5);
       ctx.stroke();
     }
 
