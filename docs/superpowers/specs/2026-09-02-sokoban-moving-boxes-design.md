@@ -48,11 +48,16 @@ Four screens, driven by a simple state machine in `main.js`:
 
 ## Levels
 
-- **Levels 1-3**: recreated from the PDF's screenshots — wall layout, box and
-  target positions reproduced as closely as the images allow.
-- **Levels 4-10**: original designs, increasing in size/complexity, following
-  standard Sokoban puzzle-design principles (no unavoidable deadlocks; each
-  level verified solvable before shipping).
+- All 10 levels are single connected mazes — rooms, corridors, and pillar
+  obstacles that force the player to walk around and approach a box from the
+  correct side — matching the branching brick-corridor topology in the PDF's
+  screenshots. Levels 1-3 are small, low box-count introductions in that same
+  style; levels 4-10 are original, increasing in size and box count (up to 5)
+  for a difficulty ramp. An earlier revision used independent parallel
+  corridors per box, which looked nothing like real Sokoban and was dropped.
+- Every level is verified solvable by the BFS checker in `tests/solver.js`
+  before shipping; box-to-target pairing is flexible (any box may end on any
+  target — the win condition only requires every target to be covered).
 - Levels are data-only (`levels.js`), decoupled from rendering and engine
   logic — each level is a grid + metadata (name/floor number).
 
@@ -93,11 +98,12 @@ copyrighted. Oscillators + gain envelopes generate:
 ## Visual Style
 
 Retro palette matching the PDF screenshots: cyan floor, red-brick walls with
-mortar-line detail, diamond-hatched target tiles, a simple pixel-art player
-sprite with per-direction walking frames. Rendered on a single `<canvas>` with
-a fixed tile size, scaled to fit the window. The lobby/elevator scene is
-original illustrated art in a matching palette, not a reproduction of the
-PDF's images.
+mortar-line detail, diamond-hatched target tiles, and the player drawn as a
+small figure (head + shirt + legs) rather than an abstract shape, so it
+reads as "a person moving boxes" like the PDF's character art. Rendered on
+a single `<canvas>` with a fixed tile size, scaled to fit the window. The
+lobby/elevator scene is original illustrated art in a matching palette, not
+a reproduction of the PDF's images.
 
 ## Persistence
 
