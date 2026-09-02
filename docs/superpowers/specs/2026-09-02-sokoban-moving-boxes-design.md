@@ -28,10 +28,11 @@ Four screens, driven by a simple state machine in `main.js`:
    not lock levels.
 3. **Level Play** — the Sokoban board itself, rendered on canvas, with a HUD
    bar at the bottom showing `<floor>|moves:<n> pushes:<n> time:<h:mm:ss>`,
-   matching the PDF screenshot's format.
+   matching the PDF screenshot's format. Soft looping background music plays
+   throughout this screen.
 4. **Level Complete** — stats card (moves, pushes, time for that attempt) plus
-   a short synthesized fanfare. A keypress/click returns to the Elevator
-   Keypad screen so the player can pick the next floor.
+   a short synthesized encouragement sound. A keypress/click returns to the
+   Elevator Keypad screen so the player can pick the next floor.
 
 ## Game Engine
 
@@ -74,9 +75,20 @@ whenever the level restarts or a new level loads.
 
 Synthesized via the Web Audio API — no external audio files, nothing
 copyrighted. Oscillators + gain envelopes generate:
-- a short blip on move/push,
-- a distinct thunk when a box lands on or leaves a target,
-- a small original fanfare (3-4 note arpeggio) on level completion.
+- **Background music**: a soft, looping ambient chiptune-style track that
+  plays throughout Level Play, starting when the level loads and stopping
+  (or fading out) on completion or when leaving the level. Kept low-volume
+  so it never competes with the sound effects.
+- **Movement ping**: a short, gentle ping on every player move, whether or
+  not a box is pushed.
+- **Box-on-target thunk**: a distinct low thunk, layered on top of the
+  movement ping, when a box lands on or leaves a target.
+- **Encouragement sound**: a short, upbeat multi-note phrase on level
+  completion — explicitly celebratory, distinct from the background music
+  and the movement/push sounds.
+- **Mute toggle**: a small speaker icon during Level Play lets the player
+  mute/unmute music and sound effects; the preference persists in
+  `localStorage`.
 
 ## Visual Style
 
@@ -116,7 +128,11 @@ Manual verification via browser preview:
 - Play level 1 end-to-end: move, push a box onto a target, undo a move,
   complete the level.
 - Confirm HUD numbers (moves/pushes/time) update correctly.
-- Confirm audio fires on move, push, target-land, and level completion.
+- Confirm background music loops softly during Level Play and stops on
+  completion/exit.
+- Confirm the movement ping fires on every move, the target thunk fires on
+  box placement/removal, and the encouragement sound fires on completion.
+- Confirm the mute toggle silences/restores audio and persists across reload.
 - Confirm keypad navigation works for all 10 floors.
 - Confirm best-times persist in `localStorage` across a page reload.
 
