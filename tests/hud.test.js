@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { formatHud } from '../js/hud.js';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { formatHud } = require('../js/hud.js');
 
 test('formats floor, moves, pushes with zero padding', () => {
   assert.equal(

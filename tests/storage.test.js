@@ -1,8 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const {
   getMuted, setMuted, getBestResult, recordResult, setStorageBackend,
-} from '../js/storage.js';
+} = require('../js/storage.js');
 
 function freshBackend() {
   const map = new Map();

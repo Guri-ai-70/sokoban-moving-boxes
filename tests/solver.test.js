@@ -1,7 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { parseLevel } from '../js/engine.js';
-import { solve } from './solver.js';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { parseLevel } = require('../js/engine.js');
+const { solve } = require('./solver.js');
 
 test('solve finds a solution for a trivially solvable level', () => {
   const state = parseLevel('#####\n#TBP#\n#####');

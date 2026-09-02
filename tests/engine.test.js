@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { parseLevel, tryMove, isWon, key } from '../js/engine.js';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { parseLevel, tryMove, isWon, key } = require('../js/engine.js');
 
 test('parseLevel reads walls, floor, player, box, target', () => {
   const state = parseLevel('#####\n#TBP#\n#####');

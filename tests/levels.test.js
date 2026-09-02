@@ -1,8 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { parseLevel } from '../js/engine.js';
-import { solve } from './solver.js';
-import { LEVELS } from '../js/levels.js';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { parseLevel } = require('../js/engine.js');
+const { solve } = require('./solver.js');
+const { LEVELS } = require('../js/levels.js');
 
 test('there are exactly 10 levels, numbered 1-10 in order', () => {
   assert.equal(LEVELS.length, 10);

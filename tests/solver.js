@@ -1,4 +1,4 @@
-import { tryMove, isWon, key } from '../js/engine.js';
+const { tryMove, isWon, key } = require('../js/engine.js');
 
 const DIRS = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -9,7 +9,7 @@ function stateKey(state) {
   return `${key(state.player.x, state.player.y)}:${boxKeys}`;
 }
 
-export function solve(initialState, maxStates = 200000) {
+function solve(initialState, maxStates = 200000) {
   if (isWon(initialState)) return true;
 
   const seen = new Set([stateKey(initialState)]);
@@ -34,3 +34,5 @@ export function solve(initialState, maxStates = 200000) {
   }
   return false;
 }
+
+module.exports = { solve };

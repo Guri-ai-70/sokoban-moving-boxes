@@ -17,6 +17,14 @@ Controls:
 
 ## Development
 
+The `js/*.js` files are plain classic scripts (not ES modules), each
+attaching its API to a `window.Sokoban*` global (e.g. `SokobanEngine`,
+`SokobanLevels`) and to `module.exports` for Node. This is deliberate:
+`type="module"` scripts are blocked by browsers when opening `index.html`
+via `file://`, while classic `<script src>` tags work everywhere. Load
+order in `index.html` matters — each file's dependencies must be listed
+before it.
+
 Run the unit test suite (pure game-logic modules only; rendering/audio/
 full gameplay are verified manually in a browser per
 `docs/superpowers/specs/2026-09-02-sokoban-moving-boxes-design.md`):

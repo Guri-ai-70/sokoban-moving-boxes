@@ -6,7 +6,13 @@
 // verified solvable by the BFS checker in tests/solver.js — box/target
 // pairing is flexible (any box may settle on any target).
 
-export const LEVELS = [
+(function (global, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof global !== 'undefined') global.SokobanLevels = api;
+})(typeof window !== 'undefined' ? window : globalThis, function () {
+
+const LEVELS = [
   {
     floor: 1,
     name: 'First Steps',
@@ -177,3 +183,6 @@ export const LEVELS = [
     ].join('\n'),
   },
 ];
+
+  return { LEVELS };
+});
