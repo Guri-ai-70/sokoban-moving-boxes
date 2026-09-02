@@ -29,25 +29,56 @@
 
   const BRICK_ROWS = 3;
   const MORTAR = '#4a0d0f';
+  const TOP_RATIO = 0.34;
 
-  function drawWall(ctx, px, py) {
+  function brickRow(ctx, px, y, w, rowH, colors, staggered) {
+    const bricksInRow = 2;
+    const brickW = w / bricksInRow;
+    const offset = staggered ? brickW / 2 : 0;
+    for (let i = -1; i < bricksInRow + 1; i++) {
+      const x = px + i * brickW + offset;
+      const clippedX = Math.max(x, px);
+      const clippedRight = Math.min(x + brickW, px + w);
+      const bw = clippedRight - clippedX;
+      if (bw <= 0) continue;
+      drawBevelRect(ctx, clippedX + 1, y + 1, bw - 2, rowH - 2, colors[0], colors[1], colors[2]);
+    }
+  }
+
+  // Walls render as extruded blocks viewed at a slight angle: a lighter,
+  // foreshortened "top" face where the block's top edge is actually
+  // exposed (nothing stacked above it), and the regular brick "front"
+  // face below — this is what reads as 3D instead of a flat top-down tile.
+  function drawWall(ctx, px, py, exposedTop, exposedRight) {
     ctx.fillStyle = MORTAR;
     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
-    const rowH = TILE_SIZE / BRICK_ROWS;
-    for (let row = 0; row < BRICK_ROWS; row++) {
-      const offset = row % 2 === 0 ? 0 : TILE_SIZE / 4;
-      const y = py + row * rowH;
-      const bricksInRow = 2;
-      const brickW = TILE_SIZE / bricksInRow;
-      for (let i = -1; i < bricksInRow; i++) {
-        const x = px + i * brickW + offset;
-        const clippedX = Math.max(x, px);
-        const clippedRight = Math.min(x + brickW, px + TILE_SIZE);
-        const w = clippedRight - clippedX;
-        if (w <= 0) continue;
-        drawBevelRect(ctx, clippedX + 1, y + 1, w - 2, rowH - 2, '#b8342a', '#d65a44', '#7a1a15');
-      }
+    const topH = exposedTop ? TILE_SIZE * TOP_RATIO : 0;
+    if (exposedTop) {
+      brickRow(ctx, px, py, TILE_SIZE, topH, ['#d9604a', '#f4977f', '#a83a28']);
+    }
+
+    const frontY = py + topH;
+    const frontH = TILE_SIZE - topH;
+    const rows = exposedTop ? 2 : BRICK_ROWS;
+    const rowH = frontH / rows;
+    for (let row = 0; row < rows; row++) {
+      const y = frontY + row * rowH;
+      brickRow(ctx, px, y, TILE_SIZE, rowH, ['#b8342a', '#d65a44', '#7a1a15'], row % 2 === 1);
+    }
+
+    if (exposedRight) {
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(px + TILE_SIZE - 5, frontY, 5, frontH);
+    }
+
+    if (exposedTop) {
+      ctx.strokeStyle = '#5c140c';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px, frontY + 0.5);
+      ctx.lineTo(px + TILE_SIZE, frontY + 0.5);
+      ctx.stroke();
     }
 
     ctx.strokeStyle = '#2a0507';
@@ -181,7 +212,9 @@
         const py = y * TILE_SIZE;
         const k = `${x},${y}`;
         if (state.walls.has(k)) {
-          drawWall(ctx, px, py);
+          const exposedTop = !state.walls.has(`${x},${y - 1}`);
+          const exposedRight = !state.walls.has(`${x + 1},${y}`);
+          drawWall(ctx, px, py, exposedTop, exposedRight);
         } else if (state.targets.has(k)) {
           drawTarget(ctx, px, py);
         }
