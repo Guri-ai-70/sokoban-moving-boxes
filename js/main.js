@@ -4,14 +4,16 @@
   const { recordResult } = window.SokobanStorage;
   const audio = window.SokobanAudio;
   const { renderLevel, muteIconRect } = window.SokobanRender;
-  const { renderLobby, renderKeypad, hitTestKeypad } = window.SokobanKeypad;
+  const { renderLobby, renderKeypad, hitTestKeypad, hitTestCallButton } = window.SokobanKeypad;
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
 
-  const SCREEN = { LOBBY: 'lobby', KEYPAD: 'keypad', PLAY: 'play', COMPLETE: 'complete' };
+  const SCREEN = { LOBBY: 'lobby', CALLING: 'calling', KEYPAD: 'keypad', PLAY: 'play', COMPLETE: 'complete' };
+  const DOOR_OPEN_MS = 900;
 
   let screen = SCREEN.LOBBY;
+  let callStartTime = null;
   let selectedFloor = null;
   let currentLevel = null; // { floor, state }
   let history = []; // [{ state, pushed }]
@@ -80,10 +82,17 @@
     loadLevel(currentLevel.floor);
   }
 
+  function callElevator() {
+    if (screen !== SCREEN.LOBBY) return;
+    screen = SCREEN.CALLING;
+    callStartTime = Date.now();
+    audio.playDing();
+  }
+
   window.addEventListener('keydown', (e) => {
     ensureAudio();
     if (screen === SCREEN.LOBBY) {
-      screen = SCREEN.KEYPAD;
+      callElevator();
       return;
     }
     if (screen !== SCREEN.PLAY) return;
@@ -107,7 +116,7 @@
     const y = e.clientY - rect.top;
 
     if (screen === SCREEN.LOBBY) {
-      screen = SCREEN.KEYPAD;
+      if (hitTestCallButton(x, y, canvas.width, canvas.height)) callElevator();
       return;
     }
     if (screen === SCREEN.KEYPAD) {
@@ -133,7 +142,14 @@
 
   function frame() {
     if (screen === SCREEN.LOBBY) {
-      renderLobby(ctx);
+      renderLobby(ctx, 0, false);
+    } else if (screen === SCREEN.CALLING) {
+      const t = Date.now() - callStartTime;
+      const slide = Math.min(1, t / DOOR_OPEN_MS);
+      renderLobby(ctx, slide, true);
+      if (t >= DOOR_OPEN_MS) {
+        screen = SCREEN.KEYPAD;
+      }
     } else if (screen === SCREEN.KEYPAD) {
       renderKeypad(ctx, selectedFloor);
     } else if (screen === SCREEN.PLAY) {

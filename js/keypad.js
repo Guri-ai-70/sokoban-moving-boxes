@@ -34,15 +34,52 @@
     return { x: GRID_LEFT + BTN_W + GAP, y: CLEAR_ACCEPT_TOP, w: BTN_W * 2 + GAP, h: BTN_H };
   }
 
-  function renderLobby(ctx) {
+  function callButtonRect(width, height) {
+    return { x: width / 2 + 70, y: height / 2 - 30, w: 26, h: 26 };
+  }
+
+  // slide: 0 = doors closed (waiting to be called), 1 = fully open.
+  // called: whether the call button has been pressed (lights it up and
+  // swaps the prompt text) even before the doors finish opening.
+  function renderLobby(ctx, slide, called) {
+    slide = slide || 0;
     const { width, height } = ctx.canvas;
     ctx.fillStyle = '#5a1a5a';
     ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = '#2a2a3a';
     ctx.fillRect(width / 2 - 80, height / 2 - 140, 160, 220);
+
+    const doorTravel = 55 * slide;
     ctx.fillStyle = '#7ad0e0';
-    ctx.fillRect(width / 2 - 60, height / 2 - 120, 50, 180);
-    ctx.fillRect(width / 2 + 10, height / 2 - 120, 50, 180);
+    ctx.fillRect(width / 2 - 60 - doorTravel, height / 2 - 120, 50, 180);
+    ctx.fillRect(width / 2 + 10 + doorTravel, height / 2 - 120, 50, 180);
+    if (slide > 0.02) {
+      // reveal a dark elevator interior behind the parting doors
+      ctx.fillStyle = '#0d0d14';
+      ctx.fillRect(width / 2 - 60, height / 2 - 120, 120, 180);
+      ctx.fillStyle = '#7ad0e0';
+      ctx.fillRect(width / 2 - 60 - doorTravel, height / 2 - 120, 50, 180);
+      ctx.fillRect(width / 2 + 10 + doorTravel, height / 2 - 120, 50, 180);
+    }
+
+    const btn = callButtonRect(width, height);
+    ctx.fillStyle = '#1a1a24';
+    ctx.fillRect(btn.x - 4, btn.y - 4, btn.w + 8, btn.h + 8);
+    ctx.beginPath();
+    ctx.arc(btn.x + btn.w / 2, btn.y + btn.h / 2, btn.w / 2, 0, Math.PI * 2);
+    ctx.fillStyle = called ? '#f6cf72' : '#c0392b';
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#1a1a24';
+    ctx.beginPath();
+    ctx.moveTo(btn.x + btn.w / 2, btn.y + 6);
+    ctx.lineTo(btn.x + btn.w - 6, btn.y + btn.h - 6);
+    ctx.lineTo(btn.x + 6, btn.y + btn.h - 6);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.fillStyle = '#f2e9d8';
     ctx.beginPath();
     ctx.arc(width / 2, height / 2 + 60, 18, 0, Math.PI * 2);
@@ -51,7 +88,10 @@
     ctx.fillStyle = '#35e0e8';
     ctx.font = '20px "Courier New", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Press any key to call the elevator', width / 2, height - 60);
+    ctx.fillText(
+      called ? 'Calling the elevator...' : 'Press any key or click the button to call the elevator',
+      width / 2, height - 60
+    );
     ctx.textAlign = 'left';
   }
 
@@ -116,5 +156,10 @@
     return null;
   }
 
-  return { renderLobby, renderKeypad, hitTestKeypad };
+  function hitTestCallButton(x, y, canvasWidth, canvasHeight) {
+    const btn = callButtonRect(canvasWidth, canvasHeight);
+    return x >= btn.x - 4 && x <= btn.x + btn.w + 4 && y >= btn.y - 4 && y <= btn.y + btn.h + 4;
+  }
+
+  return { renderLobby, renderKeypad, hitTestKeypad, hitTestCallButton };
 });

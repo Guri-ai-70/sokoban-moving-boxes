@@ -39,6 +39,11 @@
     tone(160, 0, 0.15, 'triangle', 0.3);
   }
 
+  function playDing() {
+    tone(1046.5, 0, 0.4, 'sine', 0.16);
+    tone(1318.5, 0.1, 0.4, 'sine', 0.12);
+  }
+
   function playEncouragement() {
     const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
     notes.forEach((freq, i) => tone(freq, i * 0.12, 0.25, 'square', 0.2));
@@ -83,5 +88,5 @@
     return next;
   }
 
-  return { initAudio, playPing, playThunk, playEncouragement, startMusic, stopMusic, toggleMute };
+  return { initAudio, playPing, playThunk, playDing, playEncouragement, startMusic, stopMusic, toggleMute };
 });
