@@ -6,9 +6,11 @@
 // original game's own level-design spreadsheets (level 0N.xlsx): wall/
 // box/target/player cells were read directly from the spreadsheet's cell
 // fills and text, one xlsx per level, interior walls included exactly as
-// drawn (the box "pockets" and dividers are real, not simplified away).
-// The renderer (js/render.js) is what decides which '#' cells actually
-// look like brick -- see the note there.
+// drawn (the box "pockets" and dividers are real, not simplified away) --
+// except where a level's own comment notes an explicit, deliberate user
+// correction on top of that transcription. The renderer (js/render.js)
+// is what decides which '#' cells actually look like brick -- see the
+// note there.
 
 (function (global, factory) {
   const api = factory();
@@ -20,13 +22,21 @@ const LEVELS = [
   {
     floor: 1,
     name: 'Floor 1',
+    // Deviates from the source spreadsheet by explicit user request
+    // (cell refs L9:O9, L10:N10): the small floor pocket at row 5, cols
+    // 10-12 was walled off on every side, unreachable by the player --
+    // sealing it (row 5) also removes its enclosing brick (row 4, cols
+    // 10-13) as real wall, since isRealWall no longer finds any floor
+    // for it to border, so both render as plain background instead of
+    // brick, matching the request to delete both areas. Re-verified
+    // solvable (the existing verified push plan still wins) first.
     text: [
       '###################',
       '#####___###########',
       '#####B__###########',
       '#####__B###########',
       '###__B_B_##########',
-      '###_#_##_#___######',
+      '###_#_##_##########',
       '#___#_##_#####__TT#',
       '#_B__B__________TT#',
       '#####_###_#P##__TT#',
