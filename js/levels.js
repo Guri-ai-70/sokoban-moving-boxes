@@ -143,12 +143,18 @@ const LEVELS = [
   {
     floor: 7,
     name: 'Floor 7',
-    // Exact transcription of the user's own level 07.xlsx, with one
-    // correction confirmed by the user: the spreadsheet marked 12 cells
-    // as targets (a full 4x3 rectangle) but only placed 11 boxes, which
-    // is unsolvable -- one cell in that rectangle (the one directly
-    // below-left of the lone box sitting above the block) was a stray
-    // target that shouldn't have been there, not a missing box.
+    // Exact transcription of the user's own level 07.xlsx, with two
+    // corrections confirmed by the user:
+    // 1. The spreadsheet marked 12 cells as targets (a full 4x3
+    //    rectangle) but only placed 11 boxes, which is unsolvable -- one
+    //    cell in that rectangle (the one directly below-left of the lone
+    //    box sitting above the block) was a stray target, not a missing
+    //    box.
+    // 2. A small 1-wide, 2-tall floor pocket (cols 6, rows 9-10) was
+    //    walled off on every side, unreachable by the player -- sealed
+    //    as wall, which also makes the bricks bordering its bottom edge
+    //    (row 11, cols 5-7) render as background instead of brick, since
+    //    they no longer touch any real floor.
     text: [
       '#############',
       '########___##',
@@ -159,8 +165,8 @@ const LEVELS = [
       '#_B__###_TT##',
       '#_B_B_B_TTT##',
       '#____###TTT##',
-      '#_BB_#_#TTT##',
-      '#__###_######',
+      '#_BB_###TTT##',
+      '#__##########',
       '#############',
     ].join('\n'),
   },
@@ -220,12 +226,17 @@ const LEVELS = [
     // Exact transcription of the user's own level 10.xlsx -- 32 boxes
     // and 32 targets split across two separate target areas (a tall
     // 3-wide column on the right, and a small 2-wide block on the lower
-    // left), unlike every earlier floor's single target cluster. Box
-    // and target counts matched exactly this time, no correction needed.
+    // left), unlike every earlier floor's single target cluster.
+    // Deviates from the source by explicit user request (cell refs
+    // G3:G5): col 4 is wall at rows 0 and 2 instead of floor -- row 0
+    // sealed an unreachable pocket (same pattern as floor 1), row 2
+    // removed a floor cell from the main room per the user's explicit
+    // choice to include it. Re-verified fully connected with no frozen
+    // boxes before applying.
     text: [
-      '####___############',
+      '#####__############',
       '##_#####______#___#',
-      '#_PB___BB__B_B_TTT#',
+      '#_PB#__BB__B_B_TTT#',
       '#_BBBB#____B__#TTT#',
       '#_B___#_BB_BB_#TTT#',
       '###___#__B____#TTT#',
