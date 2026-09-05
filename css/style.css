@@ -18,9 +18,23 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
+  overflow: hidden;
 }
 
+/* The canvas has a fixed 800x600 drawing buffer, but must never render
+   larger than the viewport -- on a narrower/shorter window it would
+   otherwise get centered with part of it (potentially a button) pushed
+   off-screen with no scroll indicator, unclickable. Scaling it down to
+   fit (never up, so it isn't blurrier than it needs to be) keeps the
+   whole canvas visible and clickable at any window size; main.js
+   converts click coordinates from this display size back to the
+   canvas's internal 800x600 space, so hit-testing stays correct either
+   way. */
 canvas {
   image-rendering: pixelated;
   background: var(--sb-cyan);
+  max-width: 100vw;
+  max-height: 100vh;
+  width: auto;
+  height: auto;
 }

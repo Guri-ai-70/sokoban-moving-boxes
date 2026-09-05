@@ -11,6 +11,7 @@
     return {
       getItem: (k) => (map.has(k) ? map.get(k) : null),
       setItem: (k, v) => map.set(k, v),
+      removeItem: (k) => map.delete(k),
     };
   }
 
@@ -20,8 +21,11 @@
     backend = newBackend;
   }
 
+  // Audio defaults OFF until a player explicitly unmutes (stores 'false')
+  // via the mute icon -- so a fresh player never hears sound unasked.
   function getMuted() {
-    return backend.getItem('sokoban:muted') === 'true';
+    const stored = backend.getItem('sokoban:muted');
+    return stored === null ? true : stored === 'true';
   }
 
   function setMuted(muted) {
@@ -45,5 +49,17 @@
     return true;
   }
 
-  return { setStorageBackend, getMuted, setMuted, getBestResult, recordResult };
+  // Wipes every floor's saved best time/moves/pushes (the RESET button on
+  // the keypad screen) -- takes the floor count explicitly rather than
+  // guessing a range, since this module doesn't otherwise depend on
+  // js/levels.js.
+  function clearAllResults(floorCount) {
+    for (let floor = 1; floor <= floorCount; floor++) {
+      backend.removeItem(`sokoban:best:${floor}`);
+    }
+  }
+
+  return {
+    setStorageBackend, getMuted, setMuted, getBestResult, recordResult, clearAllResults,
+  };
 });

@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const { parseLevel } = require('../js/engine.js');
 const { LEVELS } = require('../js/levels.js');
 
-test('there are exactly 4 levels, numbered 1-4 in order', () => {
-  assert.equal(LEVELS.length, 4);
+test('there are exactly 10 levels, numbered 1-10 in order', () => {
+  assert.equal(LEVELS.length, 10);
   LEVELS.forEach((lvl, i) => assert.equal(lvl.floor, i + 1));
 });
 

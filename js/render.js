@@ -25,6 +25,43 @@
     return Math.max(MIN_TILE_SIZE, Math.min(MAX_TILE_SIZE, ts));
   }
 
+  // The level text's bounding rectangle is wider than the actual room —
+  // an irregular room (an L-shaped floor, a side chamber) pads the
+  // unused corners out to '#' so every row is the same length. Those
+  // padding cells are still walls for collision, but they were never a
+  // real wall in the source level, so they must not render as brick.
+  //
+  // A '#' cell is a real wall face only if a floor cell touches it —
+  // checked in all 8 directions (including diagonals), not just the 4
+  // orthogonal ones, so a corner cell (diagonally touching the floor
+  // just inside it, with only wall on its own row and column) still
+  // closes the perimeter instead of reading as a gap. There is no
+  // special case for the outer edge of the grid: the actual room is
+  // frequently narrower than the padded rectangle in a given row or
+  // column, and treating every edge cell as automatically real would
+  // draw a full rectangular border past where the room actually
+  // reaches — exactly the extra "blocks to complete a rectangle" this
+  // is meant to avoid. A '#' cell with no floor anywhere in its 8
+  // neighbors is padding — it renders as plain background instead, so
+  // the room reads as its own stepped, bounded shape.
+  function isRealWall(state, x, y) {
+    if (!state.walls.has(`${x},${y}`)) return false;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx, ny = y + dy;
+        // Off the grid entirely is never floor -- without this check an
+        // edge cell's out-of-bounds neighbor (never added to the walls
+        // set) would look exactly like an open floor cell, making every
+        // outer-edge wall "real" again regardless of the room's actual
+        // shape there.
+        if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) continue;
+        if (!state.walls.has(`${nx},${ny}`)) return true;
+      }
+    }
+    return false;
+  }
+
   function drawBevelRect(ctx, x, y, w, h, base, light, dark) {
     ctx.fillStyle = base;
     ctx.fillRect(x, y, w, h);
@@ -39,7 +76,6 @@
 
   const BRICK_ROWS = 3;
   const MORTAR = '#4a0d0f';
-  const TOP_RATIO = 0.34;
 
   function brickRow(ctx, px, y, w, rowH, colors, staggered) {
     const bricksInRow = 2;
@@ -55,55 +91,33 @@
     }
   }
 
-  // Walls render as tall stacked 3D blocks — taller than the box, and
-  // viewed from above at an angle skewed to the right (not a flat
-  // top-down tile): whenever a wall's top edge is exposed (nothing
-  // stacked above it), the block rises above its own grid cell into the
-  // row above (a real vertical extrusion, not just a lighter band) with
-  // a top face and, wherever its right edge is also exposed, a skewed
-  // side face — the same 3-face cube language as the box, just taller.
-  const EXTRUSION_RATIO = 0.4;
-
-  function drawWall(ctx, px, py, ts, exposedTop, exposedRight) {
+  // Walls render as a single flat brick tile, matching the tile grid
+  // exactly (no raised top face) -- an earlier version extruded the top
+  // of a wall upward into the row above for a 3D "taller than the box"
+  // look, but that read as a second, lighter brick stacked on the real
+  // one rather than as depth, so it's gone. A skewed side face is kept
+  // wherever a wall's right edge is exposed, as a cheaper depth cue that
+  // doesn't add a fake extra course above the block.
+  function drawWall(ctx, px, py, ts, exposedRight) {
     const sideW = ts * 0.24;
-    const extrusion = exposedTop ? ts * EXTRUSION_RATIO : 0;
-    const blockTop = py - extrusion;
-    const blockH = ts + extrusion;
 
     ctx.fillStyle = MORTAR;
-    ctx.fillRect(px, blockTop, ts, blockH);
+    ctx.fillRect(px, py, ts, ts);
 
-    const topH = exposedTop ? ts * TOP_RATIO : 0;
     const frontW = exposedRight ? ts - sideW : ts;
 
-    if (exposedTop) {
-      brickRow(ctx, px, blockTop, frontW, topH, ['#d9604a', '#f4977f', '#a83a28']);
-      if (exposedRight) {
-        ctx.fillStyle = '#c04a36';
-        ctx.beginPath();
-        ctx.moveTo(px + frontW, blockTop);
-        ctx.lineTo(px + ts, blockTop + sideW * 0.6);
-        ctx.lineTo(px + ts, blockTop + topH);
-        ctx.lineTo(px + frontW, blockTop + topH);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
-
-    const frontY = blockTop + topH;
-    const frontH = blockH - topH;
-    const rows = exposedTop ? 3 : BRICK_ROWS;
-    const rowH = frontH / rows;
+    const rows = BRICK_ROWS;
+    const rowH = ts / rows;
     for (let row = 0; row < rows; row++) {
-      const y = frontY + row * rowH;
+      const y = py + row * rowH;
       brickRow(ctx, px, y, frontW, rowH, ['#b8342a', '#d65a44', '#7a1a15'], row % 2 === 1);
     }
 
     if (exposedRight) {
-      const sideRows = exposedTop ? 3 : BRICK_ROWS;
-      const sideRowH = frontH / sideRows;
+      const sideRows = BRICK_ROWS;
+      const sideRowH = ts / sideRows;
       for (let row = 0; row < sideRows; row++) {
-        const y0 = frontY + row * sideRowH;
+        const y0 = py + row * sideRowH;
         const y1 = y0 + sideRowH;
         const skew = sideW * 0.6 * (row / sideRows);
         const skewNext = sideW * 0.6 * ((row + 1) / sideRows);
@@ -123,18 +137,9 @@
       }
     }
 
-    if (exposedTop) {
-      ctx.strokeStyle = '#5c140c';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(px, frontY + 0.5);
-      ctx.lineTo(px + frontW, frontY + 0.5);
-      ctx.stroke();
-    }
-
     ctx.strokeStyle = '#2a0507';
     ctx.lineWidth = 1;
-    ctx.strokeRect(px + 0.5, blockTop + 0.5, ts - 1, blockH - 1);
+    ctx.strokeRect(px + 0.5, py + 0.5, ts - 1, ts - 1);
   }
 
   function drawTarget(ctx, px, py, ts) {
@@ -183,10 +188,15 @@
     const y = py + margin + depth;
     const front = size - depth;
 
-    const base_c = onTarget ? '#f2d78a' : '#cdeef1';
-    const top_c = onTarget ? '#fbe7ae' : '#e6f8f9';
-    const side_c = onTarget ? '#d9b866' : '#a9d6d9';
-    const line_c = onTarget ? '#7a5a1a' : '#1a2e30';
+    // A box on its target used to switch to a warm gold tone -- close
+    // enough to the wall's warm red-brown that at a glance (or scaled
+    // down) it read as another brick rather than a box. Green has no
+    // other user in this palette (walls are red, floor/off-target boxes
+    // are cyan), so it can't be confused with either.
+    const base_c = onTarget ? '#8fd68c' : '#cdeef1';
+    const top_c = onTarget ? '#c3f0c0' : '#e6f8f9';
+    const side_c = onTarget ? '#5fae5c' : '#a9d6d9';
+    const line_c = onTarget ? '#1f5c1f' : '#1a2e30';
 
     ctx.strokeStyle = line_c;
     ctx.lineWidth = 1.5;
@@ -274,14 +284,10 @@
     ctx.textAlign = 'left';
   }
 
-  function renderLevel(ctx, state, floor, moves, pushes, elapsedMs) {
-    const canvas = ctx.canvas;
-    const viewW = canvas.width;
-    const viewH = canvas.height - HUD_HEIGHT;
-
-    ctx.fillStyle = cssVar('--sb-cyan');
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+  // Shared by renderLevel and main.js's click-to-move handling, so a click
+  // maps to the same grid cell the level is actually drawn at -- computed
+  // once here instead of re-derived (and risking drift) in two places.
+  function computeViewTransform(state, viewW, viewH) {
     const ts = computeTileSize(state, viewW, viewH);
     const levelPxW = state.width * ts;
     const levelPxH = state.height * ts;
@@ -296,26 +302,52 @@
     const clampedX = fitsW ? offsetX : Math.min(0, Math.max(viewW - levelPxW, offsetX));
     const clampedY = fitsH ? offsetY : Math.min(0, Math.max(viewH - levelPxH, offsetY));
 
+    return { ts, offsetX: clampedX, offsetY: clampedY };
+  }
+
+  // hideBoxes: used for the brief post-win celebration blink (every box
+  // is on its target at that point) -- skipping the box draw on the
+  // "off" frames leaves the target diamond showing through underneath,
+  // which reads as the box flashing rather than the level re-rendering
+  // from scratch each time.
+  function renderLevel(ctx, state, floor, moves, pushes, elapsedMs, hideBoxes) {
+    const canvas = ctx.canvas;
+    const viewW = canvas.width;
+    const viewH = canvas.height - HUD_HEIGHT;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const { ts, offsetX: clampedX, offsetY: clampedY } = computeViewTransform(state, viewW, viewH);
+
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, viewW, viewH);
     ctx.clip();
     ctx.translate(clampedX, clampedY);
 
-    // Walls first (their tops extrude upward into the row above, drawn
-    // top-to-bottom so a taller wall correctly overdraws whatever's just
-    // above it). Targets are drawn in their own pass afterward — they're
-    // flat floor markings, so they must never end up partly covered by a
-    // neighboring wall's extrusion the way they would if drawn in the
-    // same pass.
+    // Walls first, floor drawn over them afterward.
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
-        const k = `${x},${y}`;
-        if (state.walls.has(k)) {
-          const exposedTop = !state.walls.has(`${x},${y - 1}`);
-          const exposedRight = !state.walls.has(`${x + 1},${y}`);
-          drawWall(ctx, x * ts, y * ts, ts, exposedTop, exposedRight);
+        if (isRealWall(state, x, y)) {
+          const exposedRight = !isRealWall(state, x + 1, y);
+          drawWall(ctx, x * ts, y * ts, ts, exposedRight);
         }
+      }
+    }
+
+    // Floor next, on top of walls rather than under them, so it stays
+    // clean regardless of draw order elsewhere. Filling every real floor
+    // cell (including ones a box/target/player sits on) after the walls
+    // guarantees a clean floor everywhere, regardless of what's drawn on
+    // it next. A '#' cell that isn't a real wall (see isRealWall) is
+    // padding outside the room's actual shape and is left on the black
+    // canvas background instead, so an irregular room reads as its own
+    // bounded shape.
+    ctx.fillStyle = cssVar('--sb-cyan');
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        if (!state.walls.has(`${x},${y}`)) ctx.fillRect(x * ts, y * ts, ts, ts);
       }
     }
 
@@ -324,9 +356,11 @@
       drawTarget(ctx, x * ts, y * ts, ts);
     }
 
-    for (const b of state.boxes) {
-      const [x, y] = b.split(',').map(Number);
-      drawBox(ctx, x * ts, y * ts, ts, state.targets.has(b));
+    if (!hideBoxes) {
+      for (const b of state.boxes) {
+        const [x, y] = b.split(',').map(Number);
+        drawBox(ctx, x * ts, y * ts, ts, state.targets.has(b));
+      }
     }
 
     drawPlayer(ctx, state.player.x * ts, state.player.y * ts, ts);
@@ -347,5 +381,70 @@
     return isWon(state);
   }
 
-  return { muteIconRect, renderLevel };
+  const BALLOON_COLORS = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#e67e22'];
+  const BALLOON_COUNT = 10;
+
+  function drawBalloon(ctx, x, y, size, color) {
+    // string
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.62);
+    ctx.lineTo(x, y + size * 0.62 + 26);
+    ctx.stroke();
+
+    // knot
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y + size * 0.56);
+    ctx.lineTo(x + 3, y + size * 0.56);
+    ctx.lineTo(x, y + size * 0.56 + 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // body
+    ctx.beginPath();
+    ctx.ellipse(x, y, size * 0.5, size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // shine
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x - size * 0.16, y - size * 0.22, size * 0.12, size * 0.18, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Balloons drift upward from below the screen and loop, each on its own
+  // horizontal lane and speed so the celebration keeps going for as long
+  // as the complete screen is shown, not just a one-shot burst.
+  function renderComplete(ctx, stats, tMs) {
+    const canvas = ctx.canvas;
+    const { width, height } = canvas;
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, width, height);
+
+    for (let i = 0; i < BALLOON_COUNT; i++) {
+      const laneX = ((i + 0.5) / BALLOON_COUNT) * width;
+      const speed = 55 + (i % 5) * 14;
+      const cycle = height + 120;
+      const y = height - ((tMs / 1000 * speed + i * 71) % cycle) + 40;
+      const wobble = Math.sin(tMs / 450 + i * 1.7) * 16;
+      drawBalloon(ctx, laneX + wobble, y, 34, BALLOON_COLORS[i % BALLOON_COLORS.length]);
+    }
+
+    ctx.fillStyle = '#35e0e8';
+    ctx.font = '28px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Floor Complete!', width / 2, height / 2 - 40);
+    ctx.font = '18px "Courier New", monospace';
+    ctx.fillText(
+      `moves:${stats.moves}  pushes:${stats.pushes}  time:${Math.round(stats.timeMs / 1000)}s`,
+      width / 2, height / 2
+    );
+    ctx.fillText('Click to return to the elevator', width / 2, height / 2 + 40);
+    ctx.textAlign = 'left';
+  }
+
+  return { muteIconRect, renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT };
 });

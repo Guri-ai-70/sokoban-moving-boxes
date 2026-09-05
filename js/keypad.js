@@ -7,12 +7,18 @@
   const { LEVELS } = SokobanLevels;
 
   const COLS = 5;
-  const BTN_W = 90;
-  const BTN_H = 60;
+  const BTN_W = 130;
+  const BTN_H = 130;
   const GRID_LEFT = 40;
-  const GRID_TOP = 80;
-  const GAP = 12;
-  const CLEAR_ACCEPT_TOP = GRID_TOP + 2 * (BTN_H + GAP) + 20;
+  const GRID_TOP = 150;
+  const GAP = 16;
+  // RESET/ACCEPT sit below however many rows the floor circles actually
+  // need (not a hardcoded row count -- that was stale as soon as the
+  // level count stopped being a clean multiple of COLS, which silently
+  // shifted these buttons under the wrong spot).
+  const FLOOR_ROWS = Math.ceil(LEVELS.length / COLS);
+  const RESET_ACCEPT_TOP = GRID_TOP + FLOOR_ROWS * (BTN_H + GAP) + 20;
+  const ACTION_BTN_H = 60;
 
   function floorButtonRect(floor) {
     const i = floor - 1;
@@ -26,12 +32,20 @@
     };
   }
 
-  function clearButtonRect() {
-    return { x: GRID_LEFT, y: CLEAR_ACCEPT_TOP, w: BTN_W, h: BTN_H };
+  // Floor buttons render as circles (elevator call-button style) instead
+  // of squares; the circle is inscribed in the same grid cell used for
+  // layout and hit-testing math above.
+  function floorButtonCircle(floor) {
+    const r = floorButtonRect(floor);
+    return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, radius: Math.min(r.w, r.h) / 2 };
+  }
+
+  function resetButtonRect() {
+    return { x: GRID_LEFT, y: RESET_ACCEPT_TOP, w: BTN_W, h: ACTION_BTN_H };
   }
 
   function acceptButtonRect() {
-    return { x: GRID_LEFT + BTN_W + GAP, y: CLEAR_ACCEPT_TOP, w: BTN_W * 2 + GAP, h: BTN_H };
+    return { x: GRID_LEFT + BTN_W + GAP, y: RESET_ACCEPT_TOP, w: BTN_W * 2 + GAP, h: ACTION_BTN_H };
   }
 
   function callButtonRect(width, height) {
@@ -100,35 +114,42 @@
     ctx.fillStyle = '#3a1414';
     ctx.fillRect(0, 0, width, height);
 
+    ctx.font = 'bold 52px "Courier New", monospace';
+    ctx.fillStyle = '#f6cf1e';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sokoban Moving Boxes', width / 2, 70);
+
     ctx.font = '20px "Courier New", monospace';
     ctx.fillStyle = '#f2e9d8';
-    ctx.textAlign = 'center';
-    ctx.fillText('Select a floor', width / 2, 44);
+    ctx.fillText('Select a floor', width / 2, 110);
 
-    ctx.font = '16px "Courier New", monospace';
     for (const lvl of LEVELS) {
-      const r = floorButtonRect(lvl.floor);
+      const c = floorButtonCircle(lvl.floor);
+      ctx.beginPath();
+      ctx.arc(c.cx, c.cy, c.radius, 0, Math.PI * 2);
       ctx.fillStyle = selectedFloor === lvl.floor ? '#e0a83a' : '#7a2a2a';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.fill();
       ctx.strokeStyle = '#000';
-      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
       ctx.fillStyle = '#f2e9d8';
       ctx.textAlign = 'center';
-      ctx.fillText(String(lvl.floor), r.x + r.w / 2, r.y + 22);
+      ctx.font = 'bold 56px "Courier New", monospace';
+      ctx.fillText(String(lvl.floor), c.cx, c.cy + 18);
 
       const best = getBestResult(lvl.floor);
       if (best) {
-        ctx.font = '11px "Courier New", monospace';
-        ctx.fillText(`best ${best.moves}mv`, r.x + r.w / 2, r.y + 44);
-        ctx.font = '16px "Courier New", monospace';
+        ctx.font = '13px "Courier New", monospace';
+        ctx.fillText(`best ${best.moves}mv`, c.cx, c.cy + c.radius + 16);
       }
     }
+    ctx.font = '18px "Courier New", monospace';
 
-    const clear = clearButtonRect();
+    const reset = resetButtonRect();
     ctx.fillStyle = '#555';
-    ctx.fillRect(clear.x, clear.y, clear.w, clear.h);
+    ctx.fillRect(reset.x, reset.y, reset.w, reset.h);
     ctx.fillStyle = '#f2e9d8';
-    ctx.fillText('CLEAR', clear.x + clear.w / 2, clear.y + clear.h / 2 + 5);
+    ctx.fillText('RESET', reset.x + reset.w / 2, reset.y + reset.h / 2 + 6);
 
     const accept = acceptButtonRect();
     ctx.fillStyle = '#2a7a2a';
@@ -140,14 +161,15 @@
 
   function hitTestKeypad(x, y) {
     for (const lvl of LEVELS) {
-      const r = floorButtonRect(lvl.floor);
-      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+      const c = floorButtonCircle(lvl.floor);
+      const dx = x - c.cx, dy = y - c.cy;
+      if (dx * dx + dy * dy <= c.radius * c.radius) {
         return { type: 'floor', floor: lvl.floor };
       }
     }
-    const clear = clearButtonRect();
-    if (x >= clear.x && x <= clear.x + clear.w && y >= clear.y && y <= clear.y + clear.h) {
-      return { type: 'clear' };
+    const reset = resetButtonRect();
+    if (x >= reset.x && x <= reset.x + reset.w && y >= reset.y && y <= reset.y + reset.h) {
+      return { type: 'reset' };
     }
     const accept = acceptButtonRect();
     if (x >= accept.x && x <= accept.x + accept.w && y >= accept.y && y <= accept.y + accept.h) {
