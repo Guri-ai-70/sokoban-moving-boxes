@@ -9,12 +9,38 @@
 
   const MAX_TILE_SIZE = 48;
   const MIN_TILE_SIZE = 10;
-  const HUD_HEIGHT = 32;
+  const HUD_HEIGHT = 40;
   const MUTE_ICON_SIZE = 28;
   const MUTE_ICON_MARGIN = 8;
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // Brass & Terrazzo colours/fonts live as CSS custom properties (see
+  // DESIGN.md). They never change at runtime, so read them once instead
+  // of calling getComputedStyle for every tile on every frame.
+  let theme = null;
+  function T() {
+    if (!theme) {
+      theme = {};
+      for (const name of [
+        'walnut-900', 'walnut-700', 'walnut-500', 'brass-300', 'brass-500', 'brass-700',
+        'amber', 'cream', 'chip-1', 'chip-2', 'chip-3', 'charcoal', 'oak', 'oak-dark', 'ink',
+        'font-ui', 'font-num',
+      ]) {
+        theme[name] = cssVar(`--bt-${name}`);
+      }
+    }
+    return theme;
+  }
+
+  // Deterministic per-cell noise in [0, 1), so terrazzo chips and wood
+  // grain sit in the same place every frame instead of shimmering.
+  function cellRand(x, y, i) {
+    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(i, 1442695041)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
 
   // Like the original 1987 game, a level always fits entirely on one
@@ -62,206 +88,169 @@
     return false;
   }
 
-  function drawBevelRect(ctx, x, y, w, h, base, light, dark) {
-    ctx.fillStyle = base;
-    ctx.fillRect(x, y, w, h);
-    if (w < 6 || h < 6) return;
-    ctx.fillStyle = light;
-    ctx.fillRect(x, y, w, 2);
-    ctx.fillRect(x, y, 2, h);
-    ctx.fillStyle = dark;
-    ctx.fillRect(x, y + h - 2, w, 2);
-    ctx.fillRect(x + w - 2, y, 2, h);
-  }
-
-  const BRICK_ROWS = 3;
-  const MORTAR = '#4a0d0f';
-
-  function brickRow(ctx, px, y, w, rowH, colors, staggered) {
-    const bricksInRow = 2;
-    const brickW = w / bricksInRow;
-    const offset = staggered ? brickW / 2 : 0;
-    for (let i = -1; i < bricksInRow + 1; i++) {
-      const x = px + i * brickW + offset;
-      const clippedX = Math.max(x, px);
-      const clippedRight = Math.min(x + brickW, px + w);
-      const bw = clippedRight - clippedX;
-      if (bw <= 0) continue;
-      drawBevelRect(ctx, clippedX + 1, y + 1, bw - 2, rowH - 2, colors[0], colors[1], colors[2]);
-    }
-  }
-
-  // Walls render as a single flat brick tile, matching the tile grid
-  // exactly (no raised top face) -- an earlier version extruded the top
-  // of a wall upward into the row above for a 3D "taller than the box"
-  // look, but that read as a second, lighter brick stacked on the real
-  // one rather than as depth, so it's gone. A skewed side face is kept
-  // wherever a wall's right edge is exposed, as a cheaper depth cue that
-  // doesn't add a fake extra course above the block.
-  function drawWall(ctx, px, py, ts, exposedRight) {
-    const sideW = ts * 0.24;
-
-    ctx.fillStyle = MORTAR;
+  // Walnut wall block: a recessed panel outline and a little grain, with a
+  // brass cap along any top edge that faces open floor.
+  function drawWall(ctx, gx, gy, ts, capTop) {
+    const c = T();
+    const px = gx * ts, py = gy * ts;
+    ctx.fillStyle = c['walnut-700'];
     ctx.fillRect(px, py, ts, ts);
 
-    const frontW = exposedRight ? ts - sideW : ts;
-
-    const rows = BRICK_ROWS;
-    const rowH = ts / rows;
-    for (let row = 0; row < rows; row++) {
-      const y = py + row * rowH;
-      brickRow(ctx, px, y, frontW, rowH, ['#b8342a', '#d65a44', '#7a1a15'], row % 2 === 1);
+    if (ts >= 14) {
+      ctx.strokeStyle = c['walnut-500'];
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 2; i++) {
+        const lineX = Math.round(px + ts * (0.2 + 0.6 * cellRand(gx, gy, i))) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(lineX, py + ts * 0.15);
+        ctx.lineTo(lineX, py + ts * 0.85);
+        ctx.stroke();
+      }
+      const inset = Math.round(ts * 0.14);
+      ctx.strokeStyle = c['walnut-900'];
+      ctx.strokeRect(px + inset + 0.5, py + inset + 0.5, ts - inset * 2 - 1, ts - inset * 2 - 1);
     }
 
-    if (exposedRight) {
-      const sideRows = BRICK_ROWS;
-      const sideRowH = ts / sideRows;
-      for (let row = 0; row < sideRows; row++) {
-        const y0 = py + row * sideRowH;
-        const y1 = y0 + sideRowH;
-        const skew = sideW * 0.6 * (row / sideRows);
-        const skewNext = sideW * 0.6 * ((row + 1) / sideRows);
-        ctx.fillStyle = row % 2 === 0 ? '#7a1a15' : '#5c130f';
-        ctx.beginPath();
-        ctx.moveTo(px + frontW, y0);
-        ctx.lineTo(px + ts, y0 - skew + sideW * 0.6);
-        ctx.lineTo(px + ts, y1 - skewNext + sideW * 0.6);
-        ctx.lineTo(px + frontW, y1);
-        ctx.closePath();
-        ctx.fill();
-        if (ts >= 16) {
-          ctx.strokeStyle = '#2a0507';
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
+    if (capTop) {
+      const capH = Math.max(2, Math.round(ts * 0.1));
+      ctx.fillStyle = c['brass-500'];
+      ctx.fillRect(px, py, ts, capH);
+      ctx.fillStyle = c['brass-300'];
+      ctx.fillRect(px, py, ts, 1);
+    }
+  }
+
+  // Cream terrazzo tile with scattered chips and a thin brass divider
+  // strip on its top/left edge, so the floor reads as a countable grid.
+  function drawFloor(ctx, gx, gy, ts, shadowTop) {
+    const c = T();
+    const px = gx * ts, py = gy * ts;
+    ctx.fillStyle = c.cream;
+    ctx.fillRect(px, py, ts, ts);
+
+    if (ts >= 14) {
+      const chips = [c['chip-1'], c['chip-2'], c['chip-3']];
+      for (let i = 0; i < 6; i++) {
+        const size = Math.max(1.5, ts * (0.04 + 0.05 * cellRand(gx, gy, i + 20)));
+        ctx.fillStyle = chips[i % 3];
+        ctx.fillRect(
+          px + (ts - size) * cellRand(gx, gy, i),
+          py + (ts - size) * cellRand(gx, gy, i + 10),
+          size, size
+        );
       }
     }
 
-    ctx.strokeStyle = '#2a0507';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(px + 0.5, py + 0.5, ts - 1, ts - 1);
+    // A wall directly above casts a band of shade onto the floor below it.
+    if (shadowTop) {
+      ctx.fillStyle = 'rgba(28, 18, 11, 0.22)';
+      ctx.fillRect(px, py, ts, Math.max(2, ts * 0.14));
+    }
+
+    ctx.fillStyle = 'rgba(138, 100, 39, 0.45)';
+    ctx.fillRect(px, py, ts, 1);
+    ctx.fillRect(px, py, 1, ts);
   }
 
+  // Inlaid brass ring medallion.
   function drawTarget(ctx, px, py, ts) {
-    ctx.fillStyle = cssVar('--sb-cyan');
-    ctx.fillRect(px, py, ts, ts);
-    ctx.strokeStyle = cssVar('--sb-target');
-    ctx.lineWidth = 2;
-    const cx = px + ts / 2;
-    const cy = py + ts / 2;
-    const r = ts / 3;
+    const c = T();
+    const cx = px + ts / 2, cy = py + ts / 2;
     ctx.beginPath();
-    ctx.moveTo(cx, cy - r);
-    ctx.lineTo(cx + r, cy);
-    ctx.lineTo(cx, cy + r);
-    ctx.lineTo(cx - r, cy);
-    ctx.closePath();
+    ctx.arc(cx, cy, ts * 0.3, 0, Math.PI * 2);
+    ctx.strokeStyle = c['brass-700'];
+    ctx.lineWidth = Math.max(2, ts * 0.1);
     ctx.stroke();
+    ctx.strokeStyle = c['brass-500'];
+    ctx.lineWidth = Math.max(1, ts * 0.05);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(1.5, ts * 0.08), 0, Math.PI * 2);
+    ctx.fillStyle = c['brass-700'];
+    ctx.fill();
   }
 
-  // Woven-crate texture (X crosshatch + a diamond in the middle) on a
-  // pale base — matches the reference screenshots' box art, which is a
-  // basket-weave crate, not a plain painted cube.
-  function drawWoven(ctx, x, y, w, h, lineColor) {
-    ctx.strokeStyle = lineColor;
-    ctx.lineWidth = Math.max(1, w * 0.07);
-    ctx.beginPath();
-    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
-    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
-    ctx.stroke();
-    const cx = x + w / 2, cy = y + h / 2;
-    const r = Math.min(w, h) * 0.34;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - r);
-    ctx.lineTo(cx + r, cy);
-    ctx.lineTo(cx, cy + r);
-    ctx.lineTo(cx - r, cy);
-    ctx.closePath();
-    ctx.stroke();
-  }
-
+  // Oak crate with slats and brass corner plates. On its target it turns
+  // into a lit brass crate -- much brighter, not just a hue shift, so the
+  // solved state reads at a glance and at tiny tile sizes.
   function drawBox(ctx, px, py, ts, onTarget) {
-    const margin = Math.max(2, ts * 0.08);
-    const size = ts - margin * 2;
-    const depth = size * 0.22;
-    const x = px + margin;
-    const y = py + margin + depth;
-    const front = size - depth;
+    const c = T();
+    const m = Math.max(2, Math.round(ts * 0.09));
+    const x = px + m, y = py + m, s = ts - m * 2;
 
-    // A box on its target used to switch to a warm gold tone -- close
-    // enough to the wall's warm red-brown that at a glance (or scaled
-    // down) it read as another brick rather than a box. Green has no
-    // other user in this palette (walls are red, floor/off-target boxes
-    // are cyan), so it can't be confused with either.
-    const base_c = onTarget ? '#8fd68c' : '#cdeef1';
-    const top_c = onTarget ? '#c3f0c0' : '#e6f8f9';
-    const side_c = onTarget ? '#5fae5c' : '#a9d6d9';
-    const line_c = onTarget ? '#1f5c1f' : '#1a2e30';
+    ctx.fillStyle = 'rgba(28, 18, 11, 0.28)';
+    ctx.fillRect(x + Math.max(1, ts * 0.05), y + Math.max(1, ts * 0.06), s, s);
 
-    ctx.strokeStyle = line_c;
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = 'round';
+    ctx.fillStyle = onTarget ? c['brass-300'] : c.oak;
+    ctx.fillRect(x, y, s, s);
 
-    // top face
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + depth, y - depth);
-    ctx.lineTo(x + depth + front, y - depth);
-    ctx.lineTo(x + front, y);
-    ctx.closePath();
-    ctx.fillStyle = top_c;
-    ctx.fill();
-    ctx.stroke();
+    ctx.strokeStyle = onTarget ? c['brass-700'] : c['oak-dark'];
+    ctx.lineWidth = Math.max(1, ts * 0.05);
+    ctx.strokeRect(x, y, s, s);
 
-    // side (right) face
-    ctx.beginPath();
-    ctx.moveTo(x + front, y);
-    ctx.lineTo(x + depth + front, y - depth);
-    ctx.lineTo(x + depth + front, y - depth + front);
-    ctx.lineTo(x + front, y + front);
-    ctx.closePath();
-    ctx.fillStyle = side_c;
-    ctx.fill();
-    ctx.stroke();
+    if (ts >= 14) {
+      ctx.lineWidth = Math.max(1, ts * 0.03);
+      ctx.beginPath();
+      for (const f of [1 / 3, 2 / 3]) {
+        ctx.moveTo(x, y + s * f);
+        ctx.lineTo(x + s, y + s * f);
+      }
+      ctx.stroke();
 
-    // front face — the woven crate texture
-    ctx.fillStyle = base_c;
-    ctx.fillRect(x, y, front, front);
-    ctx.strokeRect(x, y, front, front);
-    drawWoven(ctx, x + 1, y + 1, front - 2, front - 2, line_c);
+      const k = Math.max(3, Math.round(s * 0.2));
+      ctx.fillStyle = onTarget ? c.amber : c['brass-500'];
+      for (const [kx, ky] of [[x, y], [x + s - k, y], [x, y + s - k], [x + s - k, y + s - k]]) {
+        ctx.fillRect(kx, ky, k, k);
+      }
+    }
   }
 
+  // Bellhop: burgundy jacket with brass buttons and a pillbox cap.
   function drawPlayer(ctx, px, py, ts) {
+    const c = T();
     const cx = px + ts / 2;
-    const headR = ts * 0.16;
-    const headCy = py + ts * 0.28;
-    const bodyTop = py + ts * 0.4;
-    const bodyW = ts * 0.42;
-    const bodyH = ts * 0.34;
-    const legW = ts * 0.16;
-    const legH = ts * 0.2;
+    const headR = ts * 0.15;
+    const headCy = py + ts * 0.3;
+    const bodyTop = py + ts * 0.44;
+    const bodyW = ts * 0.44;
+    const bodyH = ts * 0.32;
+    const legW = ts * 0.15;
+    const legH = ts * 0.16;
     const legY = bodyTop + bodyH;
 
-    // legs
-    ctx.fillStyle = '#2a2a2a';
-    ctx.fillRect(cx - bodyW / 2, legY, legW, legH);
-    ctx.fillRect(cx + bodyW / 2 - legW, legY, legW, legH);
+    ctx.fillStyle = 'rgba(28, 18, 11, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(cx, legY + legH, bodyW * 0.55, ts * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // body (shirt)
-    ctx.fillStyle = '#c0392b';
+    ctx.fillStyle = c.charcoal;
+    ctx.fillRect(cx - bodyW / 2 + ts * 0.03, legY, legW, legH);
+    ctx.fillRect(cx + bodyW / 2 - legW - ts * 0.03, legY, legW, legH);
+
+    ctx.fillStyle = '#7d1f2c';
     ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
-    ctx.strokeStyle = '#5a1a12';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#3d0d14';
+    ctx.lineWidth = Math.max(1, ts * 0.03);
     ctx.strokeRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
+    if (ts >= 14) {
+      ctx.fillStyle = c['brass-300'];
+      const b = Math.max(1.5, ts * 0.05);
+      ctx.fillRect(cx - b / 2, bodyTop + bodyH * 0.25, b, b);
+      ctx.fillRect(cx - b / 2, bodyTop + bodyH * 0.6, b, b);
+    }
 
-    // head
-    ctx.fillStyle = cssVar('--sb-player');
+    ctx.fillStyle = '#e9c7a0';
     ctx.beginPath();
     ctx.arc(cx, headCy, headR, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1.5;
     ctx.stroke();
+
+    // pillbox cap with a brass band
+    const capW = headR * 1.7, capH = headR * 0.9;
+    ctx.fillStyle = '#7d1f2c';
+    ctx.fillRect(cx - capW / 2, headCy - headR - capH * 0.55, capW, capH);
+    ctx.fillStyle = c['brass-500'];
+    ctx.fillRect(cx - capW / 2, headCy - headR + capH * 0.2, capW, Math.max(1, capH * 0.25));
   }
 
   function muteIconRect(canvasWidth) {
@@ -273,15 +262,70 @@
     };
   }
 
+  // Interim brass-plate restyle of the existing mute toggle; a full-size
+  // HTML button replaces it later (see the redesign plan, step 8).
   function drawMuteIcon(ctx, canvasWidth) {
+    const c = T();
     const r = muteIconRect(canvasWidth);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = getMuted() ? c['walnut-700'] : c['brass-500'];
     ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.font = '18px "Courier New", monospace';
+    ctx.strokeStyle = c['brass-700'];
+    ctx.lineWidth = 1;
+    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    ctx.font = `bold 10px ${c['font-num']}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = getMuted() ? '#888' : cssVar('--sb-hud-text');
-    ctx.fillText(getMuted() ? 'MUTE' : 'SND', r.x + r.w / 2, r.y + r.h / 2 + 5);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = getMuted() ? c['brass-300'] : c.ink;
+    ctx.fillText(getMuted() ? 'MUTE' : 'SND', r.x + r.w / 2, r.y + r.h / 2 + 1);
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // HUD: a charcoal strip like the indicator band above elevator doors --
+  // an amber-lit floor number in a brass frame, then the counters. The
+  // text itself still comes from formatHud (js/hud.js), split into parts.
+  function drawHud(ctx, floor, moves, pushes, elapsedMs) {
+    const c = T();
+    const { width, height } = ctx.canvas;
+    const y = height - HUD_HEIGHT;
+    const mid = y + HUD_HEIGHT / 2;
+
+    ctx.fillStyle = c.charcoal;
+    ctx.fillRect(0, y, width, HUD_HEIGHT);
+    ctx.fillStyle = c['brass-500'];
+    ctx.fillRect(0, y, width, 2);
+
+    const [floorText, rest] = formatHud(floor, moves, pushes, elapsedMs).split('|');
+    const fields = rest.split(' ').map((f) => {
+      const i = f.indexOf(':');
+      return { label: f.slice(0, i).toUpperCase(), value: f.slice(i + 1) };
+    });
+
+    const boxW = 52, boxH = HUD_HEIGHT - 12;
+    ctx.fillStyle = c['walnut-900'];
+    ctx.fillRect(8, y + 7, boxW, boxH);
+    ctx.strokeStyle = c['brass-500'];
+    ctx.lineWidth = 2;
+    ctx.strokeRect(8, y + 7, boxW, boxH);
+    ctx.fillStyle = c.amber;
+    ctx.font = `bold 20px ${c['font-num']}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(floorText, 8 + boxW / 2, mid + 1);
+
+    ctx.textAlign = 'left';
+    let x = 8 + boxW + 20;
+    for (const { label, value } of fields) {
+      ctx.font = `bold 12px ${c['font-ui']}`;
+      ctx.fillStyle = c['brass-300'];
+      ctx.fillText(label, x, mid + 1);
+      x += ctx.measureText(label).width + 8;
+      ctx.font = `18px ${c['font-num']}`;
+      ctx.fillStyle = c.cream;
+      ctx.fillText(value, x, mid + 1);
+      x += ctx.measureText(value).width + 24;
+    }
+    ctx.textBaseline = 'alphabetic';
   }
 
   // Shared by renderLevel and main.js's click-to-move handling, so a click
@@ -310,7 +354,7 @@
     const viewW = canvas.width;
     const viewH = canvas.height - HUD_HEIGHT;
 
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = T()['walnut-900'];
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const { ts, offsetX: clampedX, offsetY: clampedY } = computeViewTransform(state, viewW, viewH);
@@ -321,28 +365,19 @@
     ctx.clip();
     ctx.translate(clampedX, clampedY);
 
-    // Walls first, floor drawn over them afterward.
-    for (let y = 0; y < state.height; y++) {
-      for (let x = 0; x < state.width; x++) {
-        if (isRealWall(state, x, y)) {
-          const exposedRight = !isRealWall(state, x + 1, y);
-          drawWall(ctx, x * ts, y * ts, ts, exposedRight);
-        }
-      }
-    }
+    // A '#' cell that isn't a real wall (see isRealWall) is padding outside
+    // the room's actual shape and is left as plain background, so an
+    // irregular room reads as its own bounded shape.
+    const isFloor = (x, y) =>
+      x >= 0 && y >= 0 && x < state.width && y < state.height && !state.walls.has(`${x},${y}`);
 
-    // Floor next, on top of walls rather than under them, so it stays
-    // clean regardless of draw order elsewhere. Filling every real floor
-    // cell (including ones a box/target/player sits on) after the walls
-    // guarantees a clean floor everywhere, regardless of what's drawn on
-    // it next. A '#' cell that isn't a real wall (see isRealWall) is
-    // padding outside the room's actual shape and is left on the black
-    // canvas background instead, so an irregular room reads as its own
-    // bounded shape.
-    ctx.fillStyle = cssVar('--sb-cyan');
     for (let y = 0; y < state.height; y++) {
       for (let x = 0; x < state.width; x++) {
-        if (!state.walls.has(`${x},${y}`)) ctx.fillRect(x * ts, y * ts, ts, ts);
+        if (isFloor(x, y)) {
+          drawFloor(ctx, x, y, ts, isRealWall(state, x, y - 1));
+        } else if (isRealWall(state, x, y)) {
+          drawWall(ctx, x, y, ts, isFloor(x, y - 1));
+        }
       }
     }
 
@@ -360,15 +395,7 @@
 
     ctx.restore();
 
-    const hudY = canvas.height - HUD_HEIGHT;
-    ctx.fillStyle = cssVar('--sb-hud-bg');
-    ctx.fillRect(0, hudY, canvas.width, HUD_HEIGHT);
-    ctx.fillStyle = cssVar('--sb-hud-text');
-    ctx.font = '18px "Courier New", monospace';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(formatHud(floor, moves, pushes, elapsedMs), 8, hudY + HUD_HEIGHT / 2);
-    ctx.textBaseline = 'alphabetic';
-
+    drawHud(ctx, floor, moves, pushes, elapsedMs);
     drawMuteIcon(ctx, canvas.width);
 
     return isWon(state);

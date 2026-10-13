@@ -1,15 +1,6 @@
 :root {
-  --sb-cyan: #35e0e8;
-  --sb-brick: #b8262c;
-  --sb-brick-dark: #7a1418;
-  --sb-mortar: #e8b84a;
-  --sb-target: #1a1a1a;
-  --sb-player: #f2e9d8;
-  --sb-hud-bg: #000000;
-  --sb-hud-text: #35e0e8;
-
-  /* Brass & Terrazzo theme (see DESIGN.md). The --sb-* tokens above are
-     still read by the canvas renderer until it moves to these. */
+  /* Brass & Terrazzo theme (see DESIGN.md). js/render.js reads these
+     for the canvas drawing too. */
   --bt-walnut-900: #1c120b;
   --bt-walnut-700: #33210f;
   --bt-walnut-500: #5a3b20;
@@ -58,7 +49,7 @@ body {
    way. */
 canvas {
   image-rendering: pixelated;
-  background: var(--sb-cyan);
+  background: var(--bt-walnut-900);
   max-width: 100vw;
   max-height: 100vh;
   width: auto;
