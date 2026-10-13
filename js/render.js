@@ -7,11 +7,24 @@
   const { formatHud } = SokobanHud;
   const { getMuted } = SokobanStorage;
 
-  const MAX_TILE_SIZE = 48;
+  // The canvas now fills the whole play area (see main.js), so tiles may
+  // grow well past the old 48px on a big desktop window.
+  const MAX_TILE_SIZE = 96;
   const MIN_TILE_SIZE = 10;
-  const HUD_HEIGHT = 40;
+  const HUD_HEIGHT = 44;
   const MUTE_ICON_SIZE = 28;
   const MUTE_ICON_MARGIN = 8;
+
+  // The canvas's drawing buffer is its CSS size times the device pixel
+  // ratio (sharp on high-DPI screens); main.js scales the context by that
+  // ratio, so every renderer works in CSS pixels via viewSize().
+  let pixelRatio = 1;
+  function setPixelRatio(ratio) {
+    pixelRatio = ratio;
+  }
+  function viewSize(ctx) {
+    return { width: ctx.canvas.width / pixelRatio, height: ctx.canvas.height / pixelRatio };
+  }
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -310,11 +323,12 @@
   }
 
   // HUD: a charcoal strip like the indicator band above elevator doors --
-  // an amber-lit floor number in a brass frame, then the counters. The
-  // text itself still comes from formatHud (js/hud.js), split into parts.
+  // an amber-lit floor number in a brass frame, then the counters, each a
+  // small label over its value so all three fit even on a phone. The text
+  // itself still comes from formatHud (js/hud.js), split into parts.
   function drawHud(ctx, floor, moves, pushes, elapsedMs) {
     const c = T();
-    const { width, height } = ctx.canvas;
+    const { width, height } = viewSize(ctx);
     const y = height - HUD_HEIGHT;
     const mid = y + HUD_HEIGHT / 2;
 
@@ -326,20 +340,20 @@
     const { floorText, fields } = hudParts(floor, moves, pushes, elapsedMs);
 
     const boxW = 52;
-    drawIndicator(ctx, 8 + boxW / 2, mid, boxW, HUD_HEIGHT - 12, floorText, 20);
+    drawIndicator(ctx, 12 + boxW / 2, mid + 1, boxW, HUD_HEIGHT - 14, floorText, 20);
 
+    const start = 12 + boxW + 16;
+    const fieldW = Math.min(140, (width - start - 8) / fields.length);
     ctx.textAlign = 'left';
-    let x = 8 + boxW + 20;
-    for (const { label, value } of fields) {
-      ctx.font = `bold 12px ${c['font-ui']}`;
+    fields.forEach(({ label, value }, i) => {
+      const x = start + i * fieldW;
+      ctx.font = `bold 10px ${c['font-ui']}`;
       ctx.fillStyle = c['brass-300'];
-      ctx.fillText(label, x, mid + 1);
-      x += ctx.measureText(label).width + 8;
-      ctx.font = `18px ${c['font-num']}`;
+      ctx.fillText(label, x, mid - 8);
+      ctx.font = `17px ${c['font-num']}`;
       ctx.fillStyle = c.cream;
-      ctx.fillText(value, x, mid + 1);
-      x += ctx.measureText(value).width + 24;
-    }
+      ctx.fillText(value, x, mid + 9);
+    });
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -365,12 +379,12 @@
   }
 
   function renderLevel(ctx, state, floor, moves, pushes, elapsedMs) {
-    const canvas = ctx.canvas;
-    const viewW = canvas.width;
-    const viewH = canvas.height - HUD_HEIGHT;
+    const { width, height } = viewSize(ctx);
+    const viewW = width;
+    const viewH = height - HUD_HEIGHT;
 
     ctx.fillStyle = T()['walnut-900'];
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, width, height);
 
     const { ts, offsetX: clampedX, offsetY: clampedY } = computeViewTransform(state, viewW, viewH);
 
@@ -411,7 +425,7 @@
     ctx.restore();
 
     drawHud(ctx, floor, moves, pushes, elapsedMs);
-    drawMuteIcon(ctx, canvas.width);
+    drawMuteIcon(ctx, width);
 
     return isWon(state);
   }
@@ -420,7 +434,7 @@
   // walnut card over the dimmed, solved board (drawn first by main.js).
   function renderComplete(ctx, stats, floor) {
     const c = T();
-    const { width, height } = ctx.canvas;
+    const { width, height } = viewSize(ctx);
 
     ctx.fillStyle = 'rgba(28, 18, 11, 0.72)';
     ctx.fillRect(0, 0, width, height);
@@ -472,6 +486,6 @@
 
   return {
     muteIconRect, renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT,
-    theme: T, drawIndicator,
+    theme: T, drawIndicator, setPixelRatio, viewSize,
   };
 });

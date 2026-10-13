@@ -2,12 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#33210f" />
   <title>Sokoban - Moving Boxes</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <canvas id="game" width="800" height="600"></canvas>
+  <div class="app">
+    <header class="topbar">
+      <p class="brand">Sokoban <span>Moving Boxes</span></p>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="stage" id="stage">
+      <canvas id="game" width="800" height="600" aria-label="Sokoban game board"></canvas>
+    </main>
+  </div>
   <script src="js/engine.js"></script>
   <script src="js/levels.js"></script>
   <script src="js/storage.js"></script>

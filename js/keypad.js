@@ -5,52 +5,73 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (SokobanStorage, SokobanLevels, SokobanRender) {
   const { getBestResult } = SokobanStorage;
   const { LEVELS } = SokobanLevels;
-  const { theme, drawIndicator } = SokobanRender;
+  const { theme, drawIndicator, viewSize } = SokobanRender;
 
   function clamp(min, v, max) {
     return Math.max(min, Math.min(max, v));
   }
 
-  const COLS = 5;
-  const BTN_W = 130;
-  const BTN_H = 130;
-  const GRID_LEFT = 40;
-  const GRID_TOP = 150;
-  const GAP = 16;
-  // RESET/ACCEPT sit below however many rows the floor circles actually
-  // need (not a hardcoded row count -- that was stale as soon as the
-  // level count stopped being a clean multiple of COLS, which silently
-  // shifted these buttons under the wrong spot).
-  const FLOOR_ROWS = Math.ceil(LEVELS.length / COLS);
-  const RESET_ACCEPT_TOP = GRID_TOP + FLOOR_ROWS * (BTN_H + GAP) + 20;
-  const ACTION_BTN_H = 60;
+  // Floor panel layout, derived from the canvas size (not fixed pixels):
+  // a tall 2-column panel like a real elevator's on a portrait canvas, a
+  // wide 5-column one on a landscape canvas. Drawing and hit-testing both
+  // read this one function, so a button can never drift off its hit box.
+  function keypadLayout(width, height) {
+    const pad = 16;
+    const inner = clamp(12, Math.min(width, height) * 0.03, 22);
+    const actH = 56;
+    const headerH = clamp(84, height * 0.16, 120);
+    const cols = height > width ? 2 : 5;
+    const rows = Math.ceil(LEVELS.length / cols);
 
-  function floorButtonRect(floor) {
-    const i = floor - 1;
-    const col = i % COLS;
-    const row = Math.floor(i / COLS);
+    const availW = width - pad * 2 - inner * 2;
+    const availH = height - headerH - pad - inner * 3 - actH;
+    // Cells may be wider than tall (a narrow portrait panel still spans the
+    // screen width), which keeps every tap target as large as possible.
+    const cellH = Math.max(48, Math.min(availH / rows, availW / cols * 1.1, 170));
+    const cellW = Math.max(48, Math.min(availW / cols, cellH * 1.8, 190));
+
+    const panelW = cols * cellW + inner * 2;
+    const panelH = rows * cellH + inner * 3 + actH;
+    const panelX = (width - panelW) / 2;
+    const panelY = headerH;
+    const gridX = panelX + inner;
+    const gridY = panelY + inner;
+
+    const floors = LEVELS.map((lvl, i) => ({
+      floor: lvl.floor,
+      x: gridX + (i % cols) * cellW,
+      y: gridY + Math.floor(i / cols) * cellH,
+      w: cellW,
+      h: cellH,
+    }));
+
+    const actY = gridY + rows * cellH + inner;
+    const actW = panelW - inner * 2;
+    const gap = 12;
+    const resetW = (actW - gap) * 0.42;
     return {
-      x: GRID_LEFT + col * (BTN_W + GAP),
-      y: GRID_TOP + row * (BTN_H + GAP),
-      w: BTN_W,
-      h: BTN_H,
+      headerH,
+      panel: { x: panelX, y: panelY, w: panelW, h: panelH },
+      floors,
+      reset: { x: panelX + inner, y: actY, w: resetW, h: actH },
+      accept: { x: panelX + inner + resetW + gap, y: actY, w: actW - resetW - gap, h: actH },
     };
   }
 
-  // Floor buttons render as circles (elevator call-button style) instead
-  // of squares; the circle is inscribed in the same grid cell used for
-  // layout and hit-testing math above.
-  function floorButtonCircle(floor) {
-    const r = floorButtonRect(floor);
-    return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, radius: Math.min(r.w, r.h) / 2 };
+  function inRect(x, y, r) {
+    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   }
 
-  function resetButtonRect() {
-    return { x: GRID_LEFT, y: RESET_ACCEPT_TOP, w: BTN_W, h: ACTION_BTN_H };
-  }
-
-  function acceptButtonRect() {
-    return { x: GRID_LEFT + BTN_W + GAP, y: RESET_ACCEPT_TOP, w: BTN_W * 2 + GAP, h: ACTION_BTN_H };
+  // Walnut wall panels shared by the lobby and the floor panel screen.
+  function drawWallPanels(ctx, width, bottom) {
+    const c = theme();
+    ctx.fillStyle = c['walnut-900'];
+    ctx.fillRect(0, 0, width, viewSize(ctx).height);
+    const panelW = clamp(60, width / 8, 120);
+    ctx.fillStyle = c['walnut-700'];
+    for (let x = 0; x < width; x += panelW) {
+      ctx.fillRect(x + 4, 0, panelW - 8, bottom);
+    }
   }
 
   // Lobby layout, derived from the canvas size (not fixed pixels) so the
@@ -96,17 +117,10 @@
   // any key or tap goes straight to the floor panel.
   function renderLobby(ctx) {
     const c = theme();
-    const { width, height } = ctx.canvas;
+    const { width, height } = viewSize(ctx);
     const { door, plate, floorY } = lobbyLayout(width, height);
 
-    // wall: alternating walnut panels
-    ctx.fillStyle = c['walnut-900'];
-    ctx.fillRect(0, 0, width, height);
-    const panelW = clamp(60, width / 8, 120);
-    for (let x = 0; x < width; x += panelW) {
-      ctx.fillStyle = c['walnut-700'];
-      ctx.fillRect(x + 4, 0, panelW - 8, floorY);
-    }
+    drawWallPanels(ctx, width, floorY);
 
     // floor: dark terrazzo band with a brass edge strip
     ctx.fillStyle = c.charcoal;
@@ -177,78 +191,119 @@
     ctx.textBaseline = 'alphabetic';
   }
 
-  function renderKeypad(ctx, selectedFloor) {
-    const { width, height } = ctx.canvas;
-    ctx.fillStyle = '#3a1414';
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.font = 'bold 52px "Courier New", monospace';
-    ctx.fillStyle = '#f6cf1e';
-    ctx.textAlign = 'center';
-    ctx.fillText('Sokoban Moving Boxes', width / 2, 70);
-
-    ctx.font = '20px "Courier New", monospace';
-    ctx.fillStyle = '#f2e9d8';
-    ctx.fillText('Select a floor', width / 2, 110);
-
-    for (const lvl of LEVELS) {
-      const c = floorButtonCircle(lvl.floor);
-      ctx.beginPath();
-      ctx.arc(c.cx, c.cy, c.radius, 0, Math.PI * 2);
-      ctx.fillStyle = selectedFloor === lvl.floor ? '#e0a83a' : '#7a2a2a';
-      ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.fillStyle = '#f2e9d8';
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 56px "Courier New", monospace';
-      ctx.fillText(String(lvl.floor), c.cx, c.cy + 18);
-
-      const best = getBestResult(lvl.floor);
-      if (best) {
-        ctx.font = '13px "Courier New", monospace';
-        ctx.fillText(`best ${best.moves}mv`, c.cx, c.cy + c.radius + 16);
-      }
+  // Brass action plate (Reset / Go) on the floor panel.
+  function drawPlateButton(ctx, r, label, fill, textColor) {
+    const c = theme();
+    ctx.fillStyle = fill;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = c['brass-700'];
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
+    ctx.fillStyle = textColor;
+    let px = 16;
+    ctx.font = `bold ${px}px ${c['font-ui']}`;
+    while (px > 11 && ctx.measureText(label).width > r.w - 16) {
+      px--;
+      ctx.font = `bold ${px}px ${c['font-ui']}`;
     }
-    ctx.font = '18px "Courier New", monospace';
-
-    const reset = resetButtonRect();
-    ctx.fillStyle = '#555';
-    ctx.fillRect(reset.x, reset.y, reset.w, reset.h);
-    ctx.fillStyle = '#f2e9d8';
-    ctx.fillText('RESET', reset.x + reset.w / 2, reset.y + reset.h / 2 + 6);
-
-    const accept = acceptButtonRect();
-    ctx.fillStyle = '#2a7a2a';
-    ctx.fillRect(accept.x, accept.y, accept.w, accept.h);
-    ctx.fillStyle = '#f2e9d8';
-    ctx.fillText('ACCEPT', accept.x + accept.w / 2, accept.y + accept.h / 2 + 5);
-    ctx.textAlign = 'left';
+    ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
   }
 
-  function hitTestKeypad(x, y) {
-    for (const lvl of LEVELS) {
-      const c = floorButtonCircle(lvl.floor);
-      const dx = x - c.cx, dy = y - c.cy;
-      if (dx * dx + dy * dy <= c.radius * c.radius) {
-        return { type: 'floor', floor: lvl.floor };
+  // Floor panel: a brass elevator panel with engraved floor buttons. The
+  // selected floor's button is lit amber, and the indicator above the
+  // panel shows it too. Static -- selection changes colour instantly.
+  function renderKeypad(ctx, selectedFloor) {
+    const c = theme();
+    const { width, height } = viewSize(ctx);
+    const L = keypadLayout(width, height);
+    const cx = width / 2;
+
+    drawWallPanels(ctx, width, height);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // header: floor indicator + caption
+    const indH = 40;
+    const label = selectedFloor ? String(selectedFloor).padStart(2, '0') : '--';
+    drawIndicator(ctx, cx, L.headerH * 0.36, 64, indH, label, 24);
+    ctx.fillStyle = c.cream;
+    ctx.font = `${clamp(15, width * 0.022, 19)}px ${c['font-ui']}`;
+    ctx.fillText(selectedFloor ? `Floor ${selectedFloor} selected - press Go` : 'Select a floor', cx, L.headerH * 0.36 + indH / 2 + 18);
+
+    // panel plate
+    const p = L.panel;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(p.x + 4, p.y + 6, p.w, p.h);
+    ctx.fillStyle = c['brass-500'];
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.strokeStyle = c['brass-700'];
+    ctx.lineWidth = 3;
+    ctx.strokeRect(p.x + 1.5, p.y + 1.5, p.w - 3, p.h - 3);
+    ctx.strokeStyle = c['brass-300'];
+    ctx.lineWidth = 1;
+    ctx.strokeRect(p.x + 6.5, p.y + 6.5, p.w - 13, p.h - 13);
+
+    // floor buttons
+    for (const f of L.floors) {
+      const bx = f.x + f.w / 2;
+      const by = f.y + f.h * 0.42;
+      const r = Math.min(f.w, f.h) * 0.33;
+      const lit = selectedFloor === f.floor;
+
+      ctx.beginPath();
+      ctx.arc(bx, by, r + Math.max(3, r * 0.12), 0, Math.PI * 2);
+      ctx.fillStyle = c['walnut-900'];
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fillStyle = lit ? c.amber : c['brass-300'];
+      ctx.fill();
+      ctx.strokeStyle = lit ? c['brass-700'] : c['brass-500'];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(bx, by, r * 0.82, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = c.ink;
+      ctx.font = `bold ${Math.round(r * 0.95)}px ${c['font-num']}`;
+      ctx.fillText(String(f.floor), bx, by + 1);
+
+      const best = getBestResult(f.floor);
+      if (best) {
+        ctx.font = `bold ${clamp(11, f.h * 0.11, 14)}px ${c['font-ui']}`;
+        ctx.fillText(`BEST ${best.moves}`, bx, f.y + f.h * 0.88);
       }
     }
-    const reset = resetButtonRect();
-    if (x >= reset.x && x <= reset.x + reset.w && y >= reset.y && y <= reset.y + reset.h) {
-      return { type: 'reset' };
+
+    // actions
+    drawPlateButton(ctx, L.reset, 'RESET RESULTS', c['walnut-700'], c['brass-300']);
+    if (selectedFloor) {
+      drawPlateButton(ctx, L.accept, 'GO', c.amber, c.ink);
+    } else {
+      drawPlateButton(ctx, L.accept, 'GO', c['brass-700'], c['brass-300']);
     }
-    const accept = acceptButtonRect();
-    if (x >= accept.x && x <= accept.x + accept.w && y >= accept.y && y <= accept.y + accept.h) {
-      return { type: 'accept' };
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // A floor's whole grid cell is its tap target (bigger than the drawn
+  // circle), which is far easier to hit with a finger.
+  function hitTestKeypad(x, y, canvasWidth, canvasHeight) {
+    const L = keypadLayout(canvasWidth, canvasHeight);
+    for (const f of L.floors) {
+      if (inRect(x, y, f)) {
+        return { type: 'floor', floor: f.floor };
+      }
     }
+    if (inRect(x, y, L.reset)) return { type: 'reset' };
+    if (inRect(x, y, L.accept)) return { type: 'accept' };
     return null;
   }
 
   function hitTestCallButton(x, y, canvasWidth, canvasHeight) {
     const btn = callButtonRect(canvasWidth, canvasHeight);
-    return x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h;
+    return inRect(x, y, btn);
   }
 
   return { renderLobby, renderKeypad, hitTestKeypad, hitTestCallButton };

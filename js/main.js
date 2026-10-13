@@ -3,11 +3,36 @@
   const { LEVELS } = window.SokobanLevels;
   const { recordResult, clearAllResults } = window.SokobanStorage;
   const audio = window.SokobanAudio;
-  const { renderLevel, renderComplete, muteIconRect, computeViewTransform, HUD_HEIGHT } = window.SokobanRender;
+  const {
+    renderLevel, renderComplete, muteIconRect, computeViewTransform, HUD_HEIGHT, setPixelRatio,
+  } = window.SokobanRender;
   const { renderLobby, renderKeypad, hitTestKeypad } = window.SokobanKeypad;
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+
+  // The canvas fills the stage (everything below the top bar) at any
+  // window size, growing on a big desktop screen and shrinking on a phone.
+  // viewW/viewH are its size in CSS pixels -- the space every renderer and
+  // hit test works in; the drawing buffer is that times the pixel ratio.
+  let viewW = 0;
+  let viewH = 0;
+  let pixelRatio = 1;
+
+  function resizeCanvas() {
+    const rect = stage.getBoundingClientRect();
+    viewW = Math.max(1, Math.floor(rect.width));
+    viewH = Math.max(1, Math.floor(rect.height));
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(viewW * pixelRatio);
+    canvas.height = Math.round(viewH * pixelRatio);
+    setPixelRatio(canvas.width / viewW);
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe(stage);
 
   // Static presentation (see DESIGN.md): no door-opening, win-blink or
   // balloon animations -- every screen change is instant.
@@ -113,17 +138,12 @@
   canvas.addEventListener('click', (e) => {
     ensureAudio();
     const rect = canvas.getBoundingClientRect();
-    // Convert from CSS display pixels to the canvas's own drawing-buffer
-    // coordinates -- if the element is ever displayed at a different
-    // size than its width/height attributes (a narrower viewport, page
-    // zoom, a responsive CSS rule), those two spaces diverge more the
-    // further a button sits from the top-left corner, so a button near
-    // the origin can look fine while one further down or right drifts
-    // off its own hit box.
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    // Convert from the element's displayed size to the CSS-pixel space the
+    // renderers draw in (viewW x viewH) -- normally 1:1, but kept as a
+    // ratio so a click can never drift off its button if the displayed
+    // size and the last measured size ever differ (e.g. mid-resize).
+    const x = (e.clientX - rect.left) * (viewW / rect.width);
+    const y = (e.clientY - rect.top) * (viewH / rect.height);
 
     if (screen === SCREEN.LOBBY) {
       // Any click on the lobby screen calls the elevator, same as any
@@ -133,7 +153,7 @@
       return;
     }
     if (screen === SCREEN.KEYPAD) {
-      const hit = hitTestKeypad(x, y);
+      const hit = hitTestKeypad(x, y, viewW, viewH);
       if (!hit) return;
       if (hit.type === 'floor') selectedFloor = hit.floor;
       if (hit.type === 'reset') {
@@ -144,7 +164,7 @@
       return;
     }
     if (screen === SCREEN.PLAY) {
-      const r = muteIconRect(canvas.width);
+      const r = muteIconRect(viewW);
       if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
         audio.toggleMute();
         return;
@@ -168,10 +188,9 @@
   // anywhere else is ignored rather than guessing a multi-step path.
   function handlePlayClick(clickX, clickY) {
     if (!currentLevel) return;
-    const viewW = canvas.width;
-    const viewH = canvas.height - HUD_HEIGHT;
-    const { ts, offsetX, offsetY } = computeViewTransform(currentLevel.state, viewW, viewH);
-    if (clickY >= viewH) return;
+    const boardH = viewH - HUD_HEIGHT;
+    const { ts, offsetX, offsetY } = computeViewTransform(currentLevel.state, viewW, boardH);
+    if (clickY >= boardH) return;
 
     const gridX = Math.floor((clickX - offsetX) / ts);
     const gridY = Math.floor((clickY - offsetY) / ts);
@@ -185,6 +204,7 @@
   }
 
   function frame() {
+    ctx.setTransform(canvas.width / viewW, 0, 0, canvas.height / viewH, 0, 0);
     if (screen === SCREEN.LOBBY) {
       renderLobby(ctx);
     } else if (screen === SCREEN.KEYPAD) {
