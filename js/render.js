@@ -216,15 +216,15 @@
     // Parcel: kraft box with a tape strip; lit = bright box, light tape
     // and a round seal in the middle.
     parcel(ctx, x, y, s, ts, lit, c) {
-      const edge = lit ? c['lit-edge'] : '#7d5a35';
-      ctx.fillStyle = lit ? c.lit : '#c8a073';
+      const edge = lit ? c['lit-edge'] : '#4a3218';
+      ctx.fillStyle = lit ? c.lit : '#85603a';
       ctx.fillRect(x, y, s, s);
       ctx.strokeStyle = edge;
       ctx.lineWidth = Math.max(1, ts * 0.05);
       ctx.strokeRect(x, y, s, s);
       if (ts < 14) return;
       const tw = s * 0.24;
-      ctx.fillStyle = lit ? c['lit-metal'] : '#e6d3a8';
+      ctx.fillStyle = lit ? c['lit-metal'] : '#c9ac7c';
       ctx.fillRect(x + (s - tw) / 2, y, tw, s);
       ctx.lineWidth = Math.max(1, ts * 0.02);
       ctx.strokeRect(x + (s - tw) / 2, y, tw, s);
@@ -275,6 +275,16 @@
 
     const draw = CRATE_STYLES[style || c.crate] || CRATE_STYLES.oak;
     draw(ctx, x, y, s, ts, onTarget, c);
+
+    // Every crate on its target also gets a thick dark frame -- a shape
+    // cue that doesn't depend on telling colours apart, and the strongest
+    // edge against light floors (Chrome & Marble, Jade & Ivory).
+    if (onTarget) {
+      const lw = Math.max(2, ts * 0.1);
+      ctx.strokeStyle = c['lit-edge'];
+      ctx.lineWidth = lw;
+      ctx.strokeRect(x + lw / 2, y + lw / 2, s - lw, s - lw);
+    }
   }
 
   // Settings-panel preview: one floor tile with a crate, one with a crate

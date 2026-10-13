@@ -2,6 +2,9 @@
    Terrazzo theme but are roles: walnut = deep/wall wood, brass = metal,
    amber = indicator glow, cream = floor + light text, oak = crate,
    lit = crate on its target. js/render.js reads them for the canvas.
+   Crate-on-target values were checked per theme (see DESIGN.md): lit vs
+   the same style's normal crate >= 1.8:1, its dark frame vs the floor
+   >= 4.5:1, lit vs floor >= 1.5:1 plus a distinct hue.
    A theme can be applied to any element via data-theme -- the settings
    panel's swatches use that to preview each theme's real colours. */
 :root,
@@ -18,12 +21,12 @@
   --bt-chip-2: #b98f5d;
   --bt-chip-3: #4a4642;
   --bt-charcoal: #26221f;
-  --bt-oak: #b57b3c;
+  --bt-oak: #a86f33;
   --bt-oak-dark: #6f4519;
   --bt-ink: #1a120b;
-  --bt-lit: #ecd28f;
-  --bt-lit-edge: #8a6427;
-  --bt-lit-metal: #ffb53d;
+  --bt-lit: #ffa81f;
+  --bt-lit-edge: #5a3806;
+  --bt-lit-metal: #fff0c2;
 }
 
 /* Chrome & Marble: Art Deco hotel at night */
@@ -40,7 +43,7 @@
   --bt-chip-2: #c9c4ba;
   --bt-chip-3: #5b5f66;
   --bt-charcoal: #202226;
-  --bt-oak: #8a5a3c;
+  --bt-oak: #7d5034;
   --bt-oak-dark: #4a2a18;
   --bt-ink: #0e0f11;
   --bt-lit: #2fa8e0;
@@ -54,7 +57,7 @@
   --bt-walnut-700: #2b3136;
   --bt-walnut-500: #444c53;
   --bt-brass-300: #f0b48a;
-  --bt-brass-500: #b8693d;
+  --bt-brass-500: #c77a45;
   --bt-brass-700: #7a3f1f;
   --bt-amber: #ff8a3d;
   --bt-cream: #d9d2c7;
@@ -62,11 +65,11 @@
   --bt-chip-2: #b5a48d;
   --bt-chip-3: #5d5953;
   --bt-charcoal: #1f2427;
-  --bt-oak: #a0784e;
+  --bt-oak: #86613d;
   --bt-oak-dark: #5a3d20;
   --bt-ink: #15191c;
   --bt-lit: #ff7a24;
-  --bt-lit-edge: #6e2606;
+  --bt-lit-edge: #5c1f04;
   --bt-lit-metal: #ffd2b0;
 }
 
@@ -84,11 +87,11 @@
   --bt-chip-2: #c9a96b;
   --bt-chip-3: #3f5a52;
   --bt-charcoal: #0f2a24;
-  --bt-oak: #b07a45;
+  --bt-oak: #93623a;
   --bt-oak-dark: #6a4219;
   --bt-ink: #0a221d;
-  --bt-lit: #e39d14;
-  --bt-lit-edge: #5c3d04;
+  --bt-lit: #f0a514;
+  --bt-lit-edge: #4f3403;
   --bt-lit-metal: #fff1c4;
 }
 
