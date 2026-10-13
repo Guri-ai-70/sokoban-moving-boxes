@@ -44,6 +44,57 @@
     tone(1318.5, 0.1, 0.4, 'sine', 0.12);
   }
 
+  // Short mechanical "click" for button taps: a bright triangle blip that
+  // drops in pitch and dies away in ~40ms -- no slow attack, so it lands
+  // on the tap itself.
+  function playClick() {
+    if (!ctx || getMuted()) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(2200, t0);
+    osc.frequency.exponentialRampToValueAtTime(700, t0 + 0.03);
+    gain.gain.setValueAtTime(0.18, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.06);
+  }
+
+  // Struck-bell "ding" for a solved floor: a stack of sine partials at
+  // classic church-bell ratios (hum, prime, tierce, quint, nominal...),
+  // each with an instant strike and its own exponential ring-out, the
+  // higher partials fading first -- like a hotel desk bell.
+  const BELL_PARTIALS = [
+    // [ratio to the strike note, peak gain, ring-out seconds]
+    [0.5, 0.06, 1.6],
+    [1, 0.16, 1.4],
+    [1.2, 0.06, 1.0],
+    [1.5, 0.05, 0.9],
+    [2, 0.08, 0.8],
+    [2.74, 0.04, 0.5],
+    [3.76, 0.025, 0.35],
+  ];
+
+  function playBell() {
+    if (!ctx || getMuted()) return;
+    const strike = 1046.5; // C6
+    const t0 = ctx.currentTime;
+    for (const [ratio, peak, ring] of BELL_PARTIALS) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = strike * ratio;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(peak, t0 + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + ring);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + ring + 0.05);
+    }
+  }
+
   function playEncouragement() {
     const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
     notes.forEach((freq, i) => tone(freq, i * 0.12, 0.25, 'square', 0.2));
@@ -88,5 +139,8 @@
     return next;
   }
 
-  return { initAudio, playPing, playThunk, playDing, playEncouragement, startMusic, stopMusic, toggleMute };
+  return {
+    initAudio, playPing, playThunk, playDing, playEncouragement, playClick, playBell,
+    startMusic, stopMusic, toggleMute,
+  };
 });

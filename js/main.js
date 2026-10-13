@@ -89,7 +89,7 @@
 
     if (isWon(state)) {
       audio.stopMusic();
-      audio.playEncouragement();
+      audio.playBell();
       lastStats = { moves, pushes, timeMs: elapsedMs() };
       recordResult(currentLevel.floor, lastStats);
       screen = SCREEN.COMPLETE;
@@ -150,12 +150,14 @@
       // Any click on the lobby screen calls the elevator, same as any
       // keypress -- it used to require landing exactly on the small call
       // button, which didn't match that keyboard behavior.
+      audio.playClick();
       callElevator();
       return;
     }
     if (screen === SCREEN.KEYPAD) {
       const hit = hitTestKeypad(x, y, viewW, viewH);
       if (!hit) return;
+      audio.playClick();
       if (hit.type === 'floor') selectedFloor = hit.floor;
       if (hit.type === 'reset') {
         clearAllResults(LEVELS.length);
@@ -169,6 +171,7 @@
       return;
     }
     if (screen === SCREEN.COMPLETE) {
+      audio.playClick();
       screen = SCREEN.KEYPAD;
       selectedFloor = null;
     }
@@ -205,10 +208,14 @@
   const muteBtn = document.getElementById('btn-mute');
   const muteLabel = document.getElementById('mute-label');
 
-  function onButton(el, action) {
+  // Every button tap also unlocks audio (iOS needs a user gesture). The
+  // arrows deliberately don't click: each move already plays its own step
+  // or push sound, and a click on top would double it.
+  function onButton(el, action, click = true) {
     el.addEventListener('click', () => {
       ensureAudio();
       action();
+      if (click) audio.playClick();
     });
   }
 
@@ -217,7 +224,7 @@
     const dy = Number(btn.dataset.dy);
     onButton(btn, () => {
       if (screen === SCREEN.PLAY) handlePlayMove(dx, dy);
-    });
+    }, false);
   }
   onButton(document.getElementById('btn-undo'), () => {
     if (screen === SCREEN.PLAY) undo();
@@ -226,12 +233,23 @@
     if (screen === SCREEN.PLAY) restart();
   });
 
+  // Settings panel (js/settings.js owns its behaviour; this only adds the
+  // tap sound).
+  onButton(document.getElementById('btn-settings'), () => {});
+  onButton(document.getElementById('settings-done'), () => {});
+  window.SokobanSettings.onOptionChosen(() => {
+    ensureAudio();
+    audio.playClick();
+  });
+
   // aria-pressed = sound is ON; the visible label always names the state.
   function syncMuteButton() {
     const muted = getMuted();
     muteBtn.setAttribute('aria-pressed', String(!muted));
     muteLabel.textContent = muted ? 'Muted' : 'Sound on';
   }
+  // Toggle first, then click (onButton): the click is heard when sound is
+  // switched on, and stays silent when it is switched off.
   onButton(muteBtn, () => {
     audio.toggleMute();
     syncMuteButton();
