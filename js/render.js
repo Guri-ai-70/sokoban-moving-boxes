@@ -281,6 +281,34 @@
     ctx.textBaseline = 'alphabetic';
   }
 
+  // Splits formatHud's "01|moves:0000 pushes:0000 time:0:00:00" into the
+  // floor number and labelled fields, so the HUD and the win card share
+  // one source of truth for number/time formatting (js/hud.js).
+  function hudParts(floor, moves, pushes, elapsedMs) {
+    const [floorText, rest] = formatHud(floor, moves, pushes, elapsedMs).split('|');
+    const fields = rest.split(' ').map((f) => {
+      const i = f.indexOf(':');
+      return { label: f.slice(0, i).toUpperCase(), value: f.slice(i + 1) };
+    });
+    return { floorText, fields };
+  }
+
+  // Amber-lit floor number in a brass frame, like the indicator above
+  // elevator doors. Used by the HUD and the win card.
+  function drawIndicator(ctx, cx, cy, w, h, text, fontPx) {
+    const c = T();
+    ctx.fillStyle = c['walnut-900'];
+    ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+    ctx.strokeStyle = c['brass-500'];
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
+    ctx.fillStyle = c.amber;
+    ctx.font = `bold ${fontPx}px ${c['font-num']}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, cx, cy + 1);
+  }
+
   // HUD: a charcoal strip like the indicator band above elevator doors --
   // an amber-lit floor number in a brass frame, then the counters. The
   // text itself still comes from formatHud (js/hud.js), split into parts.
@@ -295,23 +323,10 @@
     ctx.fillStyle = c['brass-500'];
     ctx.fillRect(0, y, width, 2);
 
-    const [floorText, rest] = formatHud(floor, moves, pushes, elapsedMs).split('|');
-    const fields = rest.split(' ').map((f) => {
-      const i = f.indexOf(':');
-      return { label: f.slice(0, i).toUpperCase(), value: f.slice(i + 1) };
-    });
+    const { floorText, fields } = hudParts(floor, moves, pushes, elapsedMs);
 
-    const boxW = 52, boxH = HUD_HEIGHT - 12;
-    ctx.fillStyle = c['walnut-900'];
-    ctx.fillRect(8, y + 7, boxW, boxH);
-    ctx.strokeStyle = c['brass-500'];
-    ctx.lineWidth = 2;
-    ctx.strokeRect(8, y + 7, boxW, boxH);
-    ctx.fillStyle = c.amber;
-    ctx.font = `bold 20px ${c['font-num']}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(floorText, 8 + boxW / 2, mid + 1);
+    const boxW = 52;
+    drawIndicator(ctx, 8 + boxW / 2, mid, boxW, HUD_HEIGHT - 12, floorText, 20);
 
     ctx.textAlign = 'left';
     let x = 8 + boxW + 20;
@@ -401,25 +416,58 @@
     return isWon(state);
   }
 
-  // Static win screen (no animation, see DESIGN.md).
-  function renderComplete(ctx, stats) {
-    const canvas = ctx.canvas;
-    const { width, height } = canvas;
+  // Static win screen (no animation, see DESIGN.md): a brass-framed
+  // walnut card over the dimmed, solved board (drawn first by main.js).
+  function renderComplete(ctx, stats, floor) {
+    const c = T();
+    const { width, height } = ctx.canvas;
 
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = 'rgba(28, 18, 11, 0.72)';
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = '#35e0e8';
-    ctx.font = '28px "Courier New", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Floor Complete!', width / 2, height / 2 - 40);
-    ctx.font = '18px "Courier New", monospace';
-    ctx.fillText(
-      `moves:${stats.moves}  pushes:${stats.pushes}  time:${Math.round(stats.timeMs / 1000)}s`,
-      width / 2, height / 2
-    );
-    ctx.fillText('Click to return to the elevator', width / 2, height / 2 + 40);
+    const w = Math.min(440, width - 32);
+    const h = 236;
+    const x = (width - w) / 2;
+    const y = (height - h) / 2;
+
+    ctx.fillStyle = c['walnut-700'];
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = c['brass-500'];
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    ctx.strokeStyle = c['brass-300'];
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 7.5, y + 7.5, w - 15, h - 15);
+
+    const { floorText, fields } = hudParts(floor, stats.moves, stats.pushes, stats.timeMs);
+    const cx = width / 2;
+
+    drawIndicator(ctx, cx, y + 42, 64, 36, floorText, 24);
+
+    ctx.fillStyle = c.cream;
+    ctx.font = `bold 28px ${c['font-ui']}`;
+    ctx.fillText('Floor complete', cx, y + 92);
+
+    const colW = (w - 40) / fields.length;
+    fields.forEach(({ label, value }, i) => {
+      const colX = x + 20 + colW * (i + 0.5);
+      ctx.fillStyle = c['brass-300'];
+      ctx.font = `bold 12px ${c['font-ui']}`;
+      ctx.fillText(label, colX, y + 128);
+      ctx.fillStyle = c.cream;
+      ctx.font = `24px ${c['font-num']}`;
+      ctx.fillText(value, colX, y + 154);
+    });
+
+    ctx.fillStyle = c['brass-500'];
+    ctx.fillRect(x + 40, y + 182, w - 80, 1);
+
+    ctx.fillStyle = c['brass-300'];
+    ctx.font = `15px ${c['font-ui']}`;
+    ctx.fillText('Tap or click to choose another floor', cx, y + 208);
+
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
   return { muteIconRect, renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT };

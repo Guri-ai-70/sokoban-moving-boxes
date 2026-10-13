@@ -192,7 +192,10 @@
     } else if (screen === SCREEN.PLAY) {
       renderLevel(ctx, currentLevel.state, currentLevel.floor, moves, pushes, elapsedMs());
     } else if (screen === SCREEN.COMPLETE) {
-      renderComplete(ctx, lastStats);
+      // The solved board stays visible under the win card, frozen at the
+      // final stats (the clock does not keep running behind it).
+      renderLevel(ctx, currentLevel.state, currentLevel.floor, lastStats.moves, lastStats.pushes, lastStats.timeMs);
+      renderComplete(ctx, lastStats, currentLevel.floor);
     }
     requestAnimationFrame(frame);
   }
