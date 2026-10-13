@@ -470,5 +470,8 @@
     ctx.textBaseline = 'alphabetic';
   }
 
-  return { muteIconRect, renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT };
+  return {
+    muteIconRect, renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT,
+    theme: T, drawIndicator,
+  };
 });

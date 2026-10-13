@@ -186,7 +186,7 @@
 
   function frame() {
     if (screen === SCREEN.LOBBY) {
-      renderLobby(ctx, 0, false);
+      renderLobby(ctx);
     } else if (screen === SCREEN.KEYPAD) {
       renderKeypad(ctx, selectedFloor);
     } else if (screen === SCREEN.PLAY) {
