@@ -7,13 +7,39 @@
   --sb-player: #f2e9d8;
   --sb-hud-bg: #000000;
   --sb-hud-text: #35e0e8;
+
+  /* Brass & Terrazzo theme (see DESIGN.md). The --sb-* tokens above are
+     still read by the canvas renderer until it moves to these. */
+  --bt-walnut-900: #1c120b;
+  --bt-walnut-700: #33210f;
+  --bt-walnut-500: #5a3b20;
+  --bt-brass-300: #ecd28f;
+  --bt-brass-500: #c79b4b;
+  --bt-brass-700: #8a6427;
+  --bt-amber: #ffb53d;
+  --bt-cream: #ece3cf;
+  --bt-chip-1: #8a8174;
+  --bt-chip-2: #b98f5d;
+  --bt-chip-3: #4a4642;
+  --bt-charcoal: #26221f;
+  --bt-oak: #b57b3c;
+  --bt-oak-dark: #6f4519;
+  --bt-ink: #1a120b;
+
+  --bt-font-ui: "Gill Sans", "Gill Sans MT", "Century Gothic", "Trebuchet MS", system-ui, sans-serif;
+  --bt-font-num: "Bahnschrift", "DIN Alternate", "Futura", "Century Gothic", system-ui, sans-serif;
+}
+
+::selection {
+  background: var(--bt-amber);
+  color: var(--bt-ink);
 }
 
 body {
   margin: 0;
-  background: #000;
-  color: var(--sb-hud-text);
-  font-family: "Courier New", monospace;
+  background: var(--bt-walnut-900);
+  color: var(--bt-cream);
+  font-family: var(--bt-font-ui);
   display: flex;
   align-items: center;
   justify-content: center;
