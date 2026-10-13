@@ -9,15 +9,13 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
 
+  // Static presentation (see DESIGN.md): no door-opening, win-blink or
+  // balloon animations -- every screen change is instant.
   const SCREEN = {
-    LOBBY: 'lobby', CALLING: 'calling', KEYPAD: 'keypad', PLAY: 'play', WINNING: 'winning', COMPLETE: 'complete',
+    LOBBY: 'lobby', KEYPAD: 'keypad', PLAY: 'play', COMPLETE: 'complete',
   };
-  const DOOR_OPEN_MS = 900;
-  const WIN_BLINK_MS = 3000;
-  const WIN_BLINK_INTERVAL_MS = 250;
 
   let screen = SCREEN.LOBBY;
-  let callStartTime = null;
   let selectedFloor = null;
   let currentLevel = null; // { floor, state }
   let history = []; // [{ state, pushed }]
@@ -25,8 +23,6 @@
   let pushes = 0;
   let startTime = null;
   let lastStats = null;
-  let winStartTime = null;
-  let completeStartTime = null;
   let audioStarted = false;
 
   function ensureAudio() {
@@ -71,8 +67,7 @@
       audio.playEncouragement();
       lastStats = { moves, pushes, timeMs: elapsedMs() };
       recordResult(currentLevel.floor, lastStats);
-      winStartTime = Date.now();
-      screen = SCREEN.WINNING;
+      screen = SCREEN.COMPLETE;
     }
   }
 
@@ -91,8 +86,7 @@
 
   function callElevator() {
     if (screen !== SCREEN.LOBBY) return;
-    screen = SCREEN.CALLING;
-    callStartTime = Date.now();
+    screen = SCREEN.KEYPAD;
     audio.playDing();
   }
 
@@ -193,27 +187,12 @@
   function frame() {
     if (screen === SCREEN.LOBBY) {
       renderLobby(ctx, 0, false);
-    } else if (screen === SCREEN.CALLING) {
-      const t = Date.now() - callStartTime;
-      const slide = Math.min(1, t / DOOR_OPEN_MS);
-      renderLobby(ctx, slide, true);
-      if (t >= DOOR_OPEN_MS) {
-        screen = SCREEN.KEYPAD;
-      }
     } else if (screen === SCREEN.KEYPAD) {
       renderKeypad(ctx, selectedFloor);
     } else if (screen === SCREEN.PLAY) {
       renderLevel(ctx, currentLevel.state, currentLevel.floor, moves, pushes, elapsedMs());
-    } else if (screen === SCREEN.WINNING) {
-      const t = Date.now() - winStartTime;
-      const hideBoxes = Math.floor(t / WIN_BLINK_INTERVAL_MS) % 2 === 1;
-      renderLevel(ctx, currentLevel.state, currentLevel.floor, moves, pushes, elapsedMs(), hideBoxes);
-      if (t >= WIN_BLINK_MS) {
-        completeStartTime = Date.now();
-        screen = SCREEN.COMPLETE;
-      }
     } else if (screen === SCREEN.COMPLETE) {
-      renderComplete(ctx, lastStats, Date.now() - completeStartTime);
+      renderComplete(ctx, lastStats);
     }
     requestAnimationFrame(frame);
   }

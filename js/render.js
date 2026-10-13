@@ -305,12 +305,7 @@
     return { ts, offsetX: clampedX, offsetY: clampedY };
   }
 
-  // hideBoxes: used for the brief post-win celebration blink (every box
-  // is on its target at that point) -- skipping the box draw on the
-  // "off" frames leaves the target diamond showing through underneath,
-  // which reads as the box flashing rather than the level re-rendering
-  // from scratch each time.
-  function renderLevel(ctx, state, floor, moves, pushes, elapsedMs, hideBoxes) {
+  function renderLevel(ctx, state, floor, moves, pushes, elapsedMs) {
     const canvas = ctx.canvas;
     const viewW = canvas.width;
     const viewH = canvas.height - HUD_HEIGHT;
@@ -356,11 +351,9 @@
       drawTarget(ctx, x * ts, y * ts, ts);
     }
 
-    if (!hideBoxes) {
-      for (const b of state.boxes) {
-        const [x, y] = b.split(',').map(Number);
-        drawBox(ctx, x * ts, y * ts, ts, state.targets.has(b));
-      }
+    for (const b of state.boxes) {
+      const [x, y] = b.split(',').map(Number);
+      drawBox(ctx, x * ts, y * ts, ts, state.targets.has(b));
     }
 
     drawPlayer(ctx, state.player.x * ts, state.player.y * ts, ts);
@@ -381,57 +374,13 @@
     return isWon(state);
   }
 
-  const BALLOON_COLORS = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#e67e22'];
-  const BALLOON_COUNT = 10;
-
-  function drawBalloon(ctx, x, y, size, color) {
-    // string
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, y + size * 0.62);
-    ctx.lineTo(x, y + size * 0.62 + 26);
-    ctx.stroke();
-
-    // knot
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(x - 3, y + size * 0.56);
-    ctx.lineTo(x + 3, y + size * 0.56);
-    ctx.lineTo(x, y + size * 0.56 + 6);
-    ctx.closePath();
-    ctx.fill();
-
-    // body
-    ctx.beginPath();
-    ctx.ellipse(x, y, size * 0.5, size * 0.6, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // shine
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(x - size * 0.16, y - size * 0.22, size * 0.12, size * 0.18, -0.4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Balloons drift upward from below the screen and loop, each on its own
-  // horizontal lane and speed so the celebration keeps going for as long
-  // as the complete screen is shown, not just a one-shot burst.
-  function renderComplete(ctx, stats, tMs) {
+  // Static win screen (no animation, see DESIGN.md).
+  function renderComplete(ctx, stats) {
     const canvas = ctx.canvas;
     const { width, height } = canvas;
 
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, width, height);
-
-    for (let i = 0; i < BALLOON_COUNT; i++) {
-      const laneX = ((i + 0.5) / BALLOON_COUNT) * width;
-      const speed = 55 + (i % 5) * 14;
-      const cycle = height + 120;
-      const y = height - ((tMs / 1000 * speed + i * 71) % cycle) + 40;
-      const wobble = Math.sin(tMs / 450 + i * 1.7) * 16;
-      drawBalloon(ctx, laneX + wobble, y, 34, BALLOON_COLORS[i % BALLOON_COLORS.length]);
-    }
 
     ctx.fillStyle = '#35e0e8';
     ctx.font = '28px "Courier New", monospace';
