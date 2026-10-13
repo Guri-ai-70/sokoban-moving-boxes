@@ -1,19 +1,16 @@
 (function (global, factory) {
-  const api = factory(global.SokobanEngine, global.SokobanHud, global.SokobanStorage);
+  const api = factory(global.SokobanEngine, global.SokobanHud);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof global !== 'undefined') global.SokobanRender = api;
-})(typeof window !== 'undefined' ? window : globalThis, function (SokobanEngine, SokobanHud, SokobanStorage) {
+})(typeof window !== 'undefined' ? window : globalThis, function (SokobanEngine, SokobanHud) {
   const { isWon } = SokobanEngine;
   const { formatHud } = SokobanHud;
-  const { getMuted } = SokobanStorage;
 
   // The canvas now fills the whole play area (see main.js), so tiles may
   // grow well past the old 48px on a big desktop window.
   const MAX_TILE_SIZE = 96;
   const MIN_TILE_SIZE = 10;
   const HUD_HEIGHT = 44;
-  const MUTE_ICON_SIZE = 28;
-  const MUTE_ICON_MARGIN = 8;
 
   // The canvas's drawing buffer is its CSS size times the device pixel
   // ratio (sharp on high-DPI screens); main.js scales the context by that
@@ -266,34 +263,6 @@
     ctx.fillRect(cx - capW / 2, headCy - headR + capH * 0.2, capW, Math.max(1, capH * 0.25));
   }
 
-  function muteIconRect(canvasWidth) {
-    return {
-      x: canvasWidth - MUTE_ICON_SIZE - MUTE_ICON_MARGIN,
-      y: MUTE_ICON_MARGIN,
-      w: MUTE_ICON_SIZE,
-      h: MUTE_ICON_SIZE,
-    };
-  }
-
-  // Interim brass-plate restyle of the existing mute toggle; a full-size
-  // HTML button replaces it later (see the redesign plan, step 8).
-  function drawMuteIcon(ctx, canvasWidth) {
-    const c = T();
-    const r = muteIconRect(canvasWidth);
-    ctx.fillStyle = getMuted() ? c['walnut-700'] : c['brass-500'];
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = c['brass-700'];
-    ctx.lineWidth = 1;
-    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
-    ctx.font = `bold 10px ${c['font-num']}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = getMuted() ? c['brass-300'] : c.ink;
-    ctx.fillText(getMuted() ? 'MUTE' : 'SND', r.x + r.w / 2, r.y + r.h / 2 + 1);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-  }
-
   // Splits formatHud's "01|moves:0000 pushes:0000 time:0:00:00" into the
   // floor number and labelled fields, so the HUD and the win card share
   // one source of truth for number/time formatting (js/hud.js).
@@ -425,7 +394,6 @@
     ctx.restore();
 
     drawHud(ctx, floor, moves, pushes, elapsedMs);
-    drawMuteIcon(ctx, width);
 
     return isWon(state);
   }
@@ -485,7 +453,7 @@
   }
 
   return {
-    muteIconRect, renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT,
+    renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT,
     theme: T, drawIndicator, setPixelRatio, viewSize,
   };
 });

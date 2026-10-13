@@ -1,10 +1,10 @@
 (function () {
   const { parseLevel, tryMove, isWon } = window.SokobanEngine;
   const { LEVELS } = window.SokobanLevels;
-  const { recordResult, clearAllResults } = window.SokobanStorage;
+  const { recordResult, clearAllResults, getMuted } = window.SokobanStorage;
   const audio = window.SokobanAudio;
   const {
-    renderLevel, renderComplete, muteIconRect, computeViewTransform, HUD_HEIGHT, setPixelRatio,
+    renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT, setPixelRatio,
   } = window.SokobanRender;
   const { renderLobby, renderKeypad, hitTestKeypad } = window.SokobanKeypad;
 
@@ -164,11 +164,6 @@
       return;
     }
     if (screen === SCREEN.PLAY) {
-      const r = muteIconRect(viewW);
-      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
-        audio.toggleMute();
-        return;
-      }
       handlePlayClick(x, y);
       return;
     }
@@ -203,7 +198,57 @@
     else if (dx === 1 && dy === 0) handlePlayMove(1, 0);
   }
 
+  // ---- On-screen controls (touch-friendly HTML buttons). Each one calls
+  // the same functions as the keyboard: handlePlayMove / undo / restart.
+  const controls = document.getElementById('controls');
+  const muteBtn = document.getElementById('btn-mute');
+  const muteLabel = document.getElementById('mute-label');
+
+  function onButton(el, action) {
+    el.addEventListener('click', () => {
+      ensureAudio();
+      action();
+    });
+  }
+
+  for (const btn of controls.querySelectorAll('.ctl-arrow')) {
+    const dx = Number(btn.dataset.dx);
+    const dy = Number(btn.dataset.dy);
+    onButton(btn, () => {
+      if (screen === SCREEN.PLAY) handlePlayMove(dx, dy);
+    });
+  }
+  onButton(document.getElementById('btn-undo'), () => {
+    if (screen === SCREEN.PLAY) undo();
+  });
+  onButton(document.getElementById('btn-restart'), () => {
+    if (screen === SCREEN.PLAY) restart();
+  });
+
+  // aria-pressed = sound is ON; the visible label always names the state.
+  function syncMuteButton() {
+    const muted = getMuted();
+    muteBtn.setAttribute('aria-pressed', String(!muted));
+    muteLabel.textContent = muted ? 'Muted' : 'Sound on';
+  }
+  onButton(muteBtn, () => {
+    audio.toggleMute();
+    syncMuteButton();
+  });
+  syncMuteButton();
+
+  // Touch controls only show while playing a floor.
+  let controlsShown = null;
+  function syncControls() {
+    const show = screen === SCREEN.PLAY;
+    if (show === controlsShown) return;
+    controlsShown = show;
+    controls.hidden = !show;
+    resizeCanvas();
+  }
+
   function frame() {
+    syncControls();
     ctx.setTransform(canvas.width / viewW, 0, 0, canvas.height / viewH, 0, 0);
     if (screen === SCREEN.LOBBY) {
       renderLobby(ctx);

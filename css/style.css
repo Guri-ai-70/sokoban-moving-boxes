@@ -93,6 +93,220 @@ body {
   gap: 8px;
 }
 
+@media (max-width: 420px) {
+  .brand span {
+    display: none;
+  }
+}
+
+/* ---------- Buttons (static: pressed/selected states change instantly,
+   no transitions -- see DESIGN.md) ---------- */
+button {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--bt-amber);
+  outline-offset: 2px;
+}
+
+button svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+button svg .ico-fill {
+  fill: currentColor;
+}
+
+/* Top-bar plate buttons (Mute, later Settings) */
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0 14px;
+  border: 2px solid var(--bt-brass-500);
+  border-radius: 4px;
+  background: var(--bt-walnut-900);
+  color: var(--bt-brass-300);
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tb-btn[aria-pressed="true"] {
+  background: var(--bt-brass-500);
+  color: var(--bt-ink);
+}
+
+.tb-btn .ico-on,
+.tb-btn[aria-pressed="true"] .ico-off {
+  display: none;
+}
+
+.tb-btn[aria-pressed="true"] .ico-on {
+  display: inline;
+}
+
+.tb-btn:active {
+  background: var(--bt-brass-700);
+  color: var(--bt-cream);
+}
+
+/* Play area: stage + touch controls. Controls sit under the board in
+   portrait and in a side column in landscape (incl. desktop). */
+.play-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.controls {
+  --arrow: 68px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bt-walnut-700);
+  border-top: 2px solid var(--bt-brass-500);
+}
+
+.controls[hidden] {
+  display: none;
+}
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px solid var(--bt-brass-700);
+  border-radius: 6px;
+  background: var(--bt-brass-500);
+  color: var(--bt-ink);
+  box-shadow: inset 0 1px 0 var(--bt-brass-300), 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+.ctl:active {
+  background: var(--bt-brass-700);
+  color: var(--bt-cream);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.ctl-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ctl-action {
+  min-height: 52px;
+  padding: 0 10px;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Inverted-T arrow cluster, like a keyboard's arrow keys. */
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, var(--arrow));
+  grid-template-rows: repeat(2, var(--arrow));
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  gap: 6px;
+}
+
+.ctl-arrow {
+  width: var(--arrow);
+  height: var(--arrow);
+  padding: 0;
+}
+
+.ctl-arrow svg {
+  width: 30px;
+  height: 30px;
+  fill: currentColor;
+  stroke: none;
+}
+
+.ctl-arrow.up { grid-area: up; }
+.ctl-arrow.left { grid-area: left; }
+.ctl-arrow.down { grid-area: down; }
+.ctl-arrow.right { grid-area: right; }
+.ctl-arrow.left svg { transform: rotate(-90deg); }
+.ctl-arrow.down svg { transform: rotate(180deg); }
+.ctl-arrow.right svg { transform: rotate(90deg); }
+
+@media (orientation: landscape) {
+  .play-area {
+    flex-direction: row;
+  }
+
+  .controls {
+    flex-direction: column;
+    justify-content: center;
+    border-top: none;
+    border-left: 2px solid var(--bt-brass-500);
+  }
+
+  .ctl-actions {
+    flex: none;
+    flex-direction: row;
+    align-self: stretch;
+    max-width: none;
+  }
+
+  .ctl-action {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+/* Narrow phones (360-400px): arrows stay at the 64px minimum so the
+   whole row fits without sideways scrolling. */
+@media (max-width: 400px) {
+  .controls {
+    --arrow: 64px;
+  }
+}
+
+/* A mouse/trackpad user mostly plays by keyboard: smaller controls. */
+@media (pointer: fine) {
+  .controls {
+    --arrow: 56px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tb-btn:hover,
+  .ctl:hover {
+    border-color: var(--bt-brass-300);
+  }
+}
+
 /* The stage takes all remaining height; the canvas is absolutely
    positioned inside it so its own size can never push the layout around
    (main.js measures the stage and sizes the drawing buffer to match). */
