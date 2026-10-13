@@ -12,6 +12,9 @@
     <header class="topbar">
       <p class="brand">Sokoban <span>Moving Boxes</span></p>
       <div class="topbar-actions" id="topbar-actions">
+        <button type="button" class="tb-btn" id="btn-settings" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
         <button type="button" class="tb-btn" id="btn-mute" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path class="ico-fill" d="M11 5L6 9H3v6h3l5 4z"/>
@@ -46,6 +49,22 @@
       </div>
     </div>
   </div>
+
+  <div class="overlay" id="settings-overlay" hidden>
+    <div class="panel" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1">
+      <h2 id="settings-title">Settings</h2>
+      <div class="group" role="group" aria-labelledby="theme-label">
+        <p class="group-label" id="theme-label">Colour theme</p>
+        <div class="opts opts-theme" id="theme-options"></div>
+      </div>
+      <div class="group" role="group" aria-labelledby="crate-label">
+        <p class="group-label" id="crate-label">Crate style</p>
+        <div class="opts opts-crate" id="crate-options"></div>
+      </div>
+      <button type="button" class="ctl panel-done" id="settings-done">Done</button>
+    </div>
+  </div>
+
   <script src="js/engine.js"></script>
   <script src="js/levels.js"></script>
   <script src="js/storage.js"></script>
@@ -53,6 +72,7 @@
   <script src="js/audio.js"></script>
   <script src="js/render.js"></script>
   <script src="js/keypad.js"></script>
+  <script src="js/settings.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

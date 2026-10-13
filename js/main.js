@@ -116,6 +116,7 @@
   }
 
   window.addEventListener('keydown', (e) => {
+    if (window.SokobanSettings && window.SokobanSettings.isOpen()) return;
     ensureAudio();
     if (screen === SCREEN.LOBBY) {
       callElevator();

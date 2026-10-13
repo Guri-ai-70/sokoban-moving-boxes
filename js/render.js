@@ -27,9 +27,10 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
-  // Brass & Terrazzo colours/fonts live as CSS custom properties (see
-  // DESIGN.md). They never change at runtime, so read them once instead
-  // of calling getComputedStyle for every tile on every frame.
+  // Theme colours/fonts live as CSS custom properties (see DESIGN.md);
+  // the crate style is a data-crate attribute on <html>. Both only change
+  // when the settings panel says so (refreshTheme), so read them once
+  // instead of calling getComputedStyle for every tile on every frame.
   let theme = null;
   function T() {
     if (!theme) {
@@ -37,12 +38,17 @@
       for (const name of [
         'walnut-900', 'walnut-700', 'walnut-500', 'brass-300', 'brass-500', 'brass-700',
         'amber', 'cream', 'chip-1', 'chip-2', 'chip-3', 'charcoal', 'oak', 'oak-dark', 'ink',
-        'font-ui', 'font-num',
+        'lit', 'lit-edge', 'lit-metal', 'font-ui', 'font-num',
       ]) {
         theme[name] = cssVar(`--bt-${name}`);
       }
+      theme.crate = document.documentElement.dataset.crate || 'oak';
     }
     return theme;
+  }
+
+  function refreshTheme() {
+    theme = null;
   }
 
   // Deterministic per-cell noise in [0, 1), so terrazzo chips and wood
@@ -180,25 +186,19 @@
     ctx.fill();
   }
 
-  // Oak crate with slats and brass corner plates. On its target it turns
-  // into a lit brass crate -- much brighter, not just a hue shift, so the
-  // solved state reads at a glance and at tiny tile sizes.
-  function drawBox(ctx, px, py, ts, onTarget) {
-    const c = T();
-    const m = Math.max(2, Math.round(ts * 0.09));
-    const x = px + m, y = py + m, s = ts - m * 2;
-
-    ctx.fillStyle = 'rgba(28, 18, 11, 0.28)';
-    ctx.fillRect(x + Math.max(1, ts * 0.05), y + Math.max(1, ts * 0.06), s, s);
-
-    ctx.fillStyle = onTarget ? c['brass-300'] : c.oak;
-    ctx.fillRect(x, y, s, s);
-
-    ctx.strokeStyle = onTarget ? c['brass-700'] : c['oak-dark'];
-    ctx.lineWidth = Math.max(1, ts * 0.05);
-    ctx.strokeRect(x, y, s, s);
-
-    if (ts >= 14) {
+  // Crates come in three styles (settings panel). Every style turns into
+  // a lit crate on its target -- a much brighter body (--bt-lit), not
+  // just a hue shift, so the solved state reads at a glance, on light and
+  // dark floors alike and at tiny tile sizes.
+  const CRATE_STYLES = {
+    // Oak crate: slats and metal corner plates.
+    oak(ctx, x, y, s, ts, lit, c) {
+      ctx.fillStyle = lit ? c.lit : c.oak;
+      ctx.fillRect(x, y, s, s);
+      ctx.strokeStyle = lit ? c['lit-edge'] : c['oak-dark'];
+      ctx.lineWidth = Math.max(1, ts * 0.05);
+      ctx.strokeRect(x, y, s, s);
+      if (ts < 14) return;
       ctx.lineWidth = Math.max(1, ts * 0.03);
       ctx.beginPath();
       for (const f of [1 / 3, 2 / 3]) {
@@ -206,13 +206,93 @@
         ctx.lineTo(x + s, y + s * f);
       }
       ctx.stroke();
-
       const k = Math.max(3, Math.round(s * 0.2));
-      ctx.fillStyle = onTarget ? c.amber : c['brass-500'];
+      ctx.fillStyle = lit ? c['lit-metal'] : c['brass-500'];
       for (const [kx, ky] of [[x, y], [x + s - k, y], [x, y + s - k], [x + s - k, y + s - k]]) {
         ctx.fillRect(kx, ky, k, k);
       }
-    }
+    },
+
+    // Parcel: kraft box with a tape strip; lit = bright box, light tape
+    // and a round seal in the middle.
+    parcel(ctx, x, y, s, ts, lit, c) {
+      const edge = lit ? c['lit-edge'] : '#7d5a35';
+      ctx.fillStyle = lit ? c.lit : '#c8a073';
+      ctx.fillRect(x, y, s, s);
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = Math.max(1, ts * 0.05);
+      ctx.strokeRect(x, y, s, s);
+      if (ts < 14) return;
+      const tw = s * 0.24;
+      ctx.fillStyle = lit ? c['lit-metal'] : '#e6d3a8';
+      ctx.fillRect(x + (s - tw) / 2, y, tw, s);
+      ctx.lineWidth = Math.max(1, ts * 0.02);
+      ctx.strokeRect(x + (s - tw) / 2, y, tw, s);
+      if (lit) {
+        ctx.beginPath();
+        ctx.arc(x + s / 2, y + s / 2, s * 0.16, 0, Math.PI * 2);
+        ctx.fillStyle = c.lit;
+        ctx.fill();
+        ctx.lineWidth = Math.max(1, ts * 0.04);
+        ctx.stroke();
+      }
+    },
+
+    // Steamer trunk: dark leather, two metal bands, rivets, a lid seam.
+    // Lit = the whole trunk lights up, bands go dark for contrast.
+    trunk(ctx, x, y, s, ts, lit, c) {
+      ctx.fillStyle = lit ? c.lit : '#4a2c1e';
+      ctx.fillRect(x, y, s, s);
+      ctx.strokeStyle = lit ? c['lit-edge'] : '#1f110a';
+      ctx.lineWidth = Math.max(1, ts * 0.05);
+      ctx.strokeRect(x, y, s, s);
+      if (ts < 14) return;
+      ctx.beginPath();
+      ctx.moveTo(x, y + s * 0.32);
+      ctx.lineTo(x + s, y + s * 0.32);
+      ctx.lineWidth = Math.max(1, ts * 0.03);
+      ctx.stroke();
+      const bw = Math.max(2, s * 0.12);
+      ctx.fillStyle = lit ? c['lit-edge'] : c['brass-500'];
+      for (const f of [0.22, 0.78]) ctx.fillRect(x + s * f - bw / 2, y, bw, s);
+      const rv = Math.max(2, s * 0.08);
+      ctx.fillStyle = lit ? c['lit-metal'] : c['brass-300'];
+      for (const f of [0.22, 0.78]) {
+        for (const g of [0.14, 0.86]) {
+          ctx.fillRect(x + s * f - rv / 2, y + s * g - rv / 2, rv, rv);
+        }
+      }
+    },
+  };
+
+  function drawBox(ctx, px, py, ts, onTarget, style) {
+    const c = T();
+    const m = Math.max(2, Math.round(ts * 0.09));
+    const x = px + m, y = py + m, s = ts - m * 2;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.fillRect(x + Math.max(1, ts * 0.05), y + Math.max(1, ts * 0.06), s, s);
+
+    const draw = CRATE_STYLES[style || c.crate] || CRATE_STYLES.oak;
+    draw(ctx, x, y, s, ts, onTarget, c);
+  }
+
+  // Settings-panel preview: one floor tile with a crate, one with a crate
+  // on its target, in the current theme, drawn at the screen's pixel ratio.
+  function renderCrateSample(canvas, cssW, cssH, style) {
+    const ratio = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(cssW * ratio);
+    canvas.height = Math.round(cssH * ratio);
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const ts = cssH;
+    drawFloor(ctx, 0, 0, ts, false);
+    drawFloor(ctx, 1, 0, ts, false);
+    drawBox(ctx, 0, 0, ts, false, style);
+    drawTarget(ctx, ts, 0, ts);
+    drawBox(ctx, ts, 0, ts, true, style);
   }
 
   // Bellhop: burgundy jacket with brass buttons and a pillbox cap.
@@ -454,6 +534,6 @@
 
   return {
     renderLevel, renderComplete, computeViewTransform, HUD_HEIGHT,
-    theme: T, drawIndicator, setPixelRatio, viewSize,
+    theme: T, refreshTheme, drawIndicator, setPixelRatio, viewSize, renderCrateSample,
   };
 });
