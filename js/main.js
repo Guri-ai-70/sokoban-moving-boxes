@@ -204,15 +204,37 @@
     e.preventDefault();
   });
 
-  canvas.addEventListener('click', (e) => {
-    ensureAudio();
+  function canvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
     // Convert from the element's displayed size to the CSS-pixel space the
     // renderers draw in (viewW x viewH) -- normally 1:1, but kept as a
     // ratio so a click can never drift off its button if the displayed
     // size and the last measured size ever differ (e.g. mid-resize).
-    const x = (e.clientX - rect.left) * (viewW / rect.width);
-    const y = (e.clientY - rect.top) * (viewH / rect.height);
+    return {
+      x: (e.clientX - rect.left) * (viewW / rect.width),
+      y: (e.clientY - rect.top) * (viewH / rect.height),
+    };
+  }
+
+  // Board taps while playing react on press, not on release. The click
+  // that follows the same press is then skipped (pressHandled).
+  let pressHandled = false;
+  canvas.addEventListener('pointerdown', (e) => {
+    pressHandled = false;
+    if (screen !== SCREEN.PLAY || !e.isPrimary || e.button !== 0) return;
+    ensureAudio();
+    const { x, y } = canvasPoint(e);
+    handlePlayClick(x, y);
+    pressHandled = true;
+  });
+
+  canvas.addEventListener('click', (e) => {
+    ensureAudio();
+    if (pressHandled) {
+      pressHandled = false;
+      return;
+    }
+    const { x, y } = canvasPoint(e);
 
     if (screen === SCREEN.LOBBY) {
       // Any click on the lobby screen calls the elevator, same as any
@@ -316,9 +338,22 @@
   for (const btn of controls.querySelectorAll('.ctl-arrow')) {
     const dx = Number(btn.dataset.dx);
     const dy = Number(btn.dataset.dy);
-    onButton(btn, () => {
+    const press = () => {
+      ensureAudio();
       if (screen === SCREEN.PLAY) handlePlayMove(dx, dy);
-    }, false);
+    };
+    // Move on press; the click that follows a press is ignored, and a
+    // click with no press (keyboard Enter/Space on the button) still moves.
+    let pressed = false;
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      pressed = true;
+      press();
+    });
+    btn.addEventListener('click', () => {
+      if (pressed) pressed = false;
+      else press();
+    });
   }
   onButton(document.getElementById('btn-undo'), () => {
     if (screen === SCREEN.PLAY) undo();
