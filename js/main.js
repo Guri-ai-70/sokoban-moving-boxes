@@ -1,5 +1,5 @@
 (function () {
-  const { parseLevel, tryMove, isWon } = window.SokobanEngine;
+  const { parseLevel, tryMove, isWon, findPath } = window.SokobanEngine;
   const { LEVELS } = window.SokobanLevels;
   const { recordResult, clearAllResults, getMuted } = window.SokobanStorage;
   const audio = window.SokobanAudio;
@@ -58,6 +58,8 @@
   }
 
   function loadLevel(floor) {
+    cancelWalk();
+    blockedFlash = null;
     const def = LEVELS.find((l) => l.floor === floor);
     currentLevel = { floor, state: parseLevel(def.text) };
     history = [];
@@ -72,12 +74,45 @@
     return startTime ? Date.now() - startTime : 0;
   }
 
-  function handlePlayMove(dx, dy) {
-    if (!currentLevel) return;
+  // Click-to-move walk: one step every WALK_STEP_MS. Every step of a walk
+  // is tagged with the same id in history, so a single undo rewinds it all.
+  const WALK_STEP_MS = 50;
+  const BLOCKED_FLASH_MS = 200;
+  let walkTimer = null;
+  let walkSeq = 0;
+  let blockedFlash = null; // { x, y, until }
+
+  function cancelWalk() {
+    if (walkTimer !== null) clearTimeout(walkTimer);
+    walkTimer = null;
+  }
+
+  function signalBlocked(gridX, gridY) {
+    audio.playBlocked();
+    blockedFlash = { x: gridX, y: gridY, until: Date.now() + BLOCKED_FLASH_MS };
+  }
+
+  function startWalk(steps) {
+    const id = ++walkSeq;
+    let i = 0;
+    const tick = () => {
+      walkTimer = null;
+      if (screen !== SCREEN.PLAY || !currentLevel) return;
+      if (!handlePlayMove(steps[i][0], steps[i][1], id)) return;
+      if (++i < steps.length) walkTimer = setTimeout(tick, WALK_STEP_MS);
+    };
+    tick();
+  }
+
+  // walkId is set only for steps taken by a click-to-move walk; any other
+  // move (keyboard, buttons, adjacent click) cancels a walk in progress.
+  function handlePlayMove(dx, dy, walkId) {
+    if (!currentLevel) return false;
+    if (walkId === undefined) cancelWalk();
     if (!startTime) startTime = Date.now();
     const { state, moved, pushed } = tryMove(currentLevel.state, dx, dy);
-    if (!moved) return;
-    history.push({ state: currentLevel.state, pushed });
+    if (!moved) return false;
+    history.push({ state: currentLevel.state, pushed, walkId });
     currentLevel.state = state;
     moves++;
     if (pushed) {
@@ -94,14 +129,21 @@
       recordResult(currentLevel.floor, lastStats);
       screen = SCREEN.COMPLETE;
     }
+    return true;
   }
 
   function undo() {
+    cancelWalk();
     if (history.length === 0) return;
-    const entry = history.pop();
-    currentLevel.state = entry.state;
-    moves--;
-    if (entry.pushed) pushes--;
+    const walkId = history[history.length - 1].walkId;
+    do {
+      const entry = history.pop();
+      currentLevel.state = entry.state;
+      moves--;
+      if (entry.pushed) pushes--;
+    } while (
+      walkId !== undefined && history.length > 0 && history[history.length - 1].walkId === walkId
+    );
   }
 
   function restart() {
@@ -182,24 +224,47 @@
     if (screen === SCREEN.PLAY) undo();
   });
 
-  // Clicking a tile immediately next to the player (up/down/left/right)
-  // moves/pushes in that direction, same as an arrow key -- clicking
-  // anywhere else is ignored rather than guessing a multi-step path.
+  // Clicking a tile next to the player (up/down/left/right) moves/pushes in
+  // that direction, same as an arrow key. Clicking any other empty floor
+  // walks there by the shortest path (never pushing); anything that can't be
+  // walked to gives the "blocked" signal.
   function handlePlayClick(clickX, clickY) {
     if (!currentLevel) return;
     const boardH = viewH - HUD_HEIGHT;
     const { ts, offsetX, offsetY } = computeViewTransform(currentLevel.state, viewW, boardH);
     if (clickY >= boardH) return;
+    cancelWalk();
 
     const gridX = Math.floor((clickX - offsetX) / ts);
     const gridY = Math.floor((clickY - offsetY) / ts);
-    const { player } = currentLevel.state;
-    const dx = gridX - player.x;
-    const dy = gridY - player.y;
-    if (dx === 0 && dy === -1) handlePlayMove(0, -1);
-    else if (dx === 0 && dy === 1) handlePlayMove(0, 1);
-    else if (dx === -1 && dy === 0) handlePlayMove(-1, 0);
-    else if (dx === 1 && dy === 0) handlePlayMove(1, 0);
+    const state = currentLevel.state;
+    const dx = gridX - state.player.x;
+    const dy = gridY - state.player.y;
+    if (Math.abs(dx) + Math.abs(dy) === 1) {
+      if (!handlePlayMove(dx, dy)) signalBlocked(gridX, gridY);
+      return;
+    }
+    const steps = findPath(state, gridX, gridY);
+    if (steps) startWalk(steps);
+    else signalBlocked(gridX, gridY);
+  }
+
+  function renderBlockedFlash() {
+    if (!blockedFlash) return;
+    const left = blockedFlash.until - Date.now();
+    if (left <= 0) {
+      blockedFlash = null;
+      return;
+    }
+    const boardH = viewH - HUD_HEIGHT;
+    const { ts, offsetX, offsetY } = computeViewTransform(currentLevel.state, viewW, boardH);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, viewW, boardH);
+    ctx.clip();
+    ctx.fillStyle = `rgba(220, 50, 40, ${0.55 * (left / BLOCKED_FLASH_MS)})`;
+    ctx.fillRect(offsetX + blockedFlash.x * ts, offsetY + blockedFlash.y * ts, ts, ts);
+    ctx.restore();
   }
 
   // ---- On-screen controls (touch-friendly HTML buttons). Each one calls
@@ -275,6 +340,7 @@
       renderKeypad(ctx, selectedFloor);
     } else if (screen === SCREEN.PLAY) {
       renderLevel(ctx, currentLevel.state, currentLevel.floor, moves, pushes, elapsedMs());
+      renderBlockedFlash();
     } else if (screen === SCREEN.COMPLETE) {
       // The solved board stays visible under the win card, frozen at the
       // final stats (the clock does not keep running behind it).

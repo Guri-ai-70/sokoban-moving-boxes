@@ -1,6 +1,28 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseLevel, tryMove, isWon, key } = require('../js/engine.js');
+const { parseLevel, tryMove, isWon, key, findPath } = require('../js/engine.js');
+
+test('findPath walks around a box without pushing it', () => {
+  const state = parseLevel('#####\n#P  #\n# B #\n#   #\n#####');
+  const steps = findPath(state, 3, 3);
+  assert.equal(steps.length, 4);
+  let s = state;
+  for (const [dx, dy] of steps) {
+    const r = tryMove(s, dx, dy);
+    assert.ok(r.moved && !r.pushed);
+    s = r.state;
+  }
+  assert.deepEqual(s.player, { x: 3, y: 3 });
+});
+
+test('findPath returns null for wall, box, own cell, off-grid, unreachable', () => {
+  const state = parseLevel('#####\n#PB #\n#####');
+  assert.equal(findPath(state, 0, 0), null);
+  assert.equal(findPath(state, 2, 1), null);
+  assert.equal(findPath(state, 1, 1), null);
+  assert.equal(findPath(state, 9, 9), null);
+  assert.equal(findPath(state, 3, 1), null);
+});
 
 test('parseLevel reads walls, floor, player, box, target', () => {
   const state = parseLevel('#####\n#TBP#\n#####');

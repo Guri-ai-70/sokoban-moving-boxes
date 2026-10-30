@@ -74,5 +74,40 @@
     return true;
   }
 
-  return { key, parseLevel, cloneState, tryMove, isWon };
+  const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+  // Shortest walk (BFS) from the player to (gx, gy) over open floor. Walls
+  // and boxes are obstacles, so the walk never pushes. Returns a list of
+  // [dx, dy] steps, or null when the cell is unreachable, off the grid, or
+  // is the player's own cell.
+  function findPath(state, gx, gy) {
+    if (gx < 0 || gy < 0 || gx >= state.width || gy >= state.height) return null;
+    const goal = key(gx, gy);
+    if (state.walls.has(goal) || state.boxes.has(goal)) return null;
+    const start = key(state.player.x, state.player.y);
+    if (goal === start) return null;
+
+    const prev = new Map([[start, null]]);
+    const queue = [[state.player.x, state.player.y]];
+    for (let i = 0; i < queue.length; i++) {
+      const [x, y] = queue[i];
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx;
+        const ny = y + dy;
+        const nk = key(nx, ny);
+        if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) continue;
+        if (prev.has(nk) || state.walls.has(nk) || state.boxes.has(nk)) continue;
+        prev.set(nk, [x, y, dx, dy]);
+        if (nk === goal) {
+          const steps = [];
+          for (let p = prev.get(nk); p; p = prev.get(key(p[0], p[1]))) steps.push([p[2], p[3]]);
+          return steps.reverse();
+        }
+        queue.push([nx, ny]);
+      }
+    }
+    return null;
+  }
+
+  return { key, parseLevel, cloneState, tryMove, isWon, findPath };
 });

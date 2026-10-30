@@ -39,6 +39,10 @@
     tone(160, 0, 0.15, 'triangle', 0.3);
   }
 
+  function playBlocked() {
+    tone(130, 0, 0.12, 'sawtooth', 0.12);
+  }
+
   function playDing() {
     tone(1046.5, 0, 0.4, 'sine', 0.16);
     tone(1318.5, 0.1, 0.4, 'sine', 0.12);
@@ -140,7 +144,7 @@
   }
 
   return {
-    initAudio, playPing, playThunk, playDing, playEncouragement, playClick, playBell,
+    initAudio, playPing, playThunk, playBlocked, playDing, playEncouragement, playClick, playBell,
     startMusic, stopMusic, toggleMute,
   };
 });
