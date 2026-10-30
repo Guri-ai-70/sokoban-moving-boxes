@@ -219,8 +219,10 @@
   // Board taps while playing react on press, not on release. The click
   // that follows the same press is then skipped (pressHandled).
   let pressHandled = false;
+  let lastPointerType = 'mouse';
   canvas.addEventListener('pointerdown', (e) => {
     pressHandled = false;
+    lastPointerType = e.pointerType;
     if (screen !== SCREEN.PLAY || !e.isPrimary || e.button !== 0) return;
     ensureAudio();
     const { x, y } = canvasPoint(e);
@@ -272,7 +274,9 @@
 
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    if (screen === SCREEN.PLAY) undo();
+    // Mouse only: a long-press on a phone also fires contextmenu and must
+    // not undo.
+    if (screen === SCREEN.PLAY && lastPointerType === 'mouse') undo();
   });
 
   // Clicking a tile next to the player (up/down/left/right) moves/pushes in
@@ -335,6 +339,9 @@
     });
   }
 
+  const REPEAT_DELAY_MS = 250;
+  const REPEAT_MS = 120;
+
   for (const btn of controls.querySelectorAll('.ctl-arrow')) {
     const dx = Number(btn.dataset.dx);
     const dy = Number(btn.dataset.dy);
@@ -345,11 +352,32 @@
     // Move on press; the click that follows a press is ignored, and a
     // click with no press (keyboard Enter/Space on the button) still moves.
     let pressed = false;
+    // Holding the arrow repeats the move after REPEAT_DELAY_MS, then every
+    // REPEAT_MS, until release/cancel or the game leaves PLAY.
+    let repeatTimer = null;
+    const stopRepeat = () => {
+      if (repeatTimer !== null) clearTimeout(repeatTimer);
+      repeatTimer = null;
+    };
+    const repeat = () => {
+      if (screen !== SCREEN.PLAY) {
+        repeatTimer = null;
+        return;
+      }
+      press();
+      repeatTimer = setTimeout(repeat, REPEAT_MS);
+    };
     btn.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       pressed = true;
       press();
+      stopRepeat();
+      btn.setPointerCapture(e.pointerId);
+      repeatTimer = setTimeout(repeat, REPEAT_DELAY_MS);
     });
+    btn.addEventListener('pointerup', stopRepeat);
+    btn.addEventListener('pointercancel', stopRepeat);
+    btn.addEventListener('lostpointercapture', stopRepeat);
     btn.addEventListener('click', () => {
       if (pressed) pressed = false;
       else press();
