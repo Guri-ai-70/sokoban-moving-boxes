@@ -88,8 +88,15 @@
   }
 
   function signalBlocked(gridX, gridY) {
-    audio.playBlocked();
-    blockedFlash = { x: gridX, y: gridY, until: Date.now() + BLOCKED_FLASH_MS };
+    const now = Date.now();
+    // A held key against a wall repeats this every tick: keep the flash
+    // alive but only sound/vibrate once per flash.
+    const fresh = !blockedFlash || blockedFlash.until <= now;
+    if (fresh) {
+      audio.playBlocked();
+      if (navigator.vibrate) navigator.vibrate(10);
+    }
+    blockedFlash = { x: gridX, y: gridY, until: now + BLOCKED_FLASH_MS };
   }
 
   function startWalk(steps) {
@@ -111,7 +118,12 @@
     if (walkId === undefined) cancelWalk();
     if (!startTime) startTime = Date.now();
     const { state, moved, pushed } = tryMove(currentLevel.state, dx, dy);
-    if (!moved) return false;
+    if (!moved) {
+      if (walkId === undefined) {
+        signalBlocked(currentLevel.state.player.x + dx, currentLevel.state.player.y + dy);
+      }
+      return false;
+    }
     history.push({ state: currentLevel.state, pushed, walkId });
     currentLevel.state = state;
     moves++;
@@ -241,7 +253,7 @@
     const dx = gridX - state.player.x;
     const dy = gridY - state.player.y;
     if (Math.abs(dx) + Math.abs(dy) === 1) {
-      if (!handlePlayMove(dx, dy)) signalBlocked(gridX, gridY);
+      handlePlayMove(dx, dy); // signals blocked itself
       return;
     }
     const steps = findPath(state, gridX, gridY);
