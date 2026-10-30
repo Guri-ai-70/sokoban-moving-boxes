@@ -78,6 +78,12 @@
   // is tagged with the same id in history, so a single undo rewinds it all.
   const WALK_STEP_MS = 50;
   const BLOCKED_FLASH_MS = 200;
+  // On a win the plain solved board shows for WIN_PAUSE_MS before the card
+  // appears; the card then ignores dismissals for WIN_CARD_GUARD_MS so
+  // rapid taps/keys from the final move can't skip it.
+  const WIN_PAUSE_MS = 250;
+  const WIN_CARD_GUARD_MS = 400;
+  let winCardAt = 0;
   let walkTimer = null;
   let walkSeq = 0;
   let blockedFlash = null; // { x, y, until }
@@ -127,18 +133,20 @@
     history.push({ state: currentLevel.state, pushed, walkId });
     currentLevel.state = state;
     moves++;
-    if (pushed) {
-      pushes++;
-      audio.playThunk();
-    } else {
-      audio.playPing();
+    const won = isWon(state);
+    if (pushed) pushes++;
+    // The winning push gets the bell alone -- no thunk on top of it.
+    if (!won) {
+      if (pushed) audio.playThunk();
+      else audio.playPing();
     }
 
-    if (isWon(state)) {
+    if (won) {
       audio.stopMusic();
       audio.playBell();
       lastStats = { moves, pushes, timeMs: elapsedMs() };
       recordResult(currentLevel.floor, lastStats);
+      winCardAt = Date.now() + WIN_PAUSE_MS;
       screen = SCREEN.COMPLETE;
     }
     return true;
@@ -174,6 +182,12 @@
     ensureAudio();
     if (screen === SCREEN.LOBBY) {
       callElevator();
+      return;
+    }
+    if (screen === SCREEN.COMPLETE) {
+      if (e.repeat || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+      dismissComplete();
+      e.preventDefault();
       return;
     }
     if (screen !== SCREEN.PLAY) return;
@@ -224,12 +238,15 @@
       handlePlayClick(x, y);
       return;
     }
-    if (screen === SCREEN.COMPLETE) {
-      audio.playClick();
-      screen = SCREEN.KEYPAD;
-      selectedFloor = null;
-    }
+    if (screen === SCREEN.COMPLETE) dismissComplete();
   });
+
+  function dismissComplete() {
+    if (Date.now() < winCardAt + WIN_CARD_GUARD_MS) return;
+    audio.playClick();
+    screen = SCREEN.KEYPAD;
+    selectedFloor = null;
+  }
 
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -357,7 +374,7 @@
       // The solved board stays visible under the win card, frozen at the
       // final stats (the clock does not keep running behind it).
       renderLevel(ctx, currentLevel.state, currentLevel.floor, lastStats.moves, lastStats.pushes, lastStats.timeMs);
-      renderComplete(ctx, lastStats, currentLevel.floor);
+      if (Date.now() >= winCardAt) renderComplete(ctx, lastStats, currentLevel.floor);
     }
     requestAnimationFrame(frame);
   }
