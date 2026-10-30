@@ -48,14 +48,16 @@
   let pushes = 0;
   let startTime = null;
   let lastStats = null;
-  let audioStarted = false;
-
+  // initAudio creates the context once and resumes it if suspended, so
+  // calling it on every gesture lets a later press retry a resume that a
+  // browser refused earlier.
   function ensureAudio() {
-    if (!audioStarted) {
-      audio.initAudio();
-      audioStarted = true;
-    }
+    audio.initAudio();
   }
+
+  // Unlock audio on the very first press of any gesture, before the move
+  // that follows it plays its sound.
+  window.addEventListener('pointerdown', ensureAudio, true);
 
   function loadLevel(floor) {
     cancelWalk();
@@ -138,6 +140,7 @@
     // The winning push gets the bell alone -- no thunk on top of it.
     if (!won) {
       if (pushed) audio.playThunk();
+      else if (walkId !== undefined) audio.playWalkPing();
       else audio.playPing();
     }
 

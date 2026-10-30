@@ -16,7 +16,7 @@
     }
   }
 
-  function tone(freq, startOffset, duration, type = 'sine', peakGain = 0.15) {
+  function tone(freq, startOffset, duration, type = 'sine', peakGain = 0.15, attack = 0.02) {
     if (!ctx || getMuted()) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -24,19 +24,27 @@
     osc.frequency.value = freq;
     const t0 = ctx.currentTime + startOffset;
     gain.gain.setValueAtTime(0, t0);
-    gain.gain.linearRampToValueAtTime(peakGain, t0 + 0.02);
+    gain.gain.linearRampToValueAtTime(peakGain, t0 + attack);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     osc.connect(gain).connect(ctx.destination);
     osc.start(t0);
     osc.stop(t0 + duration + 0.05);
   }
 
+  // Step/push sounds start almost instantly (2ms attack) so they land on
+  // the move itself.
   function playPing() {
-    tone(880, 0, 0.08, 'square', 0.14);
+    tone(880, 0, 0.08, 'square', 0.14, 0.002);
+  }
+
+  // Click-to-move steps come every 50ms, so each ping is shorter than that
+  // (and quieter) -- the normal 80ms ping would overlap into a buzz.
+  function playWalkPing() {
+    tone(880, 0, 0.035, 'square', 0.09, 0.002);
   }
 
   function playThunk() {
-    tone(160, 0, 0.15, 'triangle', 0.3);
+    tone(160, 0, 0.15, 'triangle', 0.3, 0.002);
   }
 
   function playBlocked() {
@@ -144,7 +152,7 @@
   }
 
   return {
-    initAudio, playPing, playThunk, playBlocked, playDing, playEncouragement, playClick, playBell,
+    initAudio, playPing, playWalkPing, playThunk, playBlocked, playDing, playEncouragement, playClick, playBell,
     startMusic, stopMusic, toggleMute,
   };
 });
