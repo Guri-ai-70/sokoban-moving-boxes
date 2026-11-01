@@ -1,5 +1,5 @@
 (function () {
-  const { parseLevel, tryMove, isWon, findPath } = window.SokobanEngine;
+  const { parseLevel, tryMove, isWon, findPath, findBoxRoute, key } = window.SokobanEngine;
   const { LEVELS } = window.SokobanLevels;
   const { recordResult, clearAllResults, getMuted } = window.SokobanStorage;
   const audio = window.SokobanAudio;
@@ -60,6 +60,7 @@
   window.addEventListener('pointerdown', ensureAudio, true);
 
   function loadLevel(floor) {
+    drag = null;
     cancelWalk();
     blockedFlash = null;
     const def = LEVELS.find((l) => l.floor === floor);
@@ -229,8 +230,73 @@
     if (screen !== SCREEN.PLAY || !e.isPrimary || e.button !== 0) return;
     ensureAudio();
     const { x, y } = canvasPoint(e);
+    // A press on a box might become a drag, so it is decided on release.
+    const cell = cellAt(x, y);
+    if (cell && currentLevel.state.boxes.has(key(cell.x, cell.y))) {
+      cancelWalk();
+      drag = { boxX: cell.x, boxY: cell.y, pointerId: e.pointerId, startX: x, startY: y, active: false, target: null };
+      canvas.setPointerCapture(e.pointerId);
+      pressHandled = true;
+      return;
+    }
     handlePlayClick(x, y);
     pressHandled = true;
+  });
+
+  // ---- Drag a box to a cell. drag.target = { x, y, route } for the cell
+  // under the pointer (route null = unreachable); it paints green/red.
+  const DRAG_START_PX = 6;
+  let drag = null;
+
+  function cellAt(px, py) {
+    if (!currentLevel) return null;
+    const boardH = viewH - HUD_HEIGHT;
+    if (py >= boardH) return null;
+    const { ts, offsetX, offsetY } = computeViewTransform(currentLevel.state, viewW, boardH);
+    return { x: Math.floor((px - offsetX) / ts), y: Math.floor((py - offsetY) / ts) };
+  }
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const { x, y } = canvasPoint(e);
+    const cell = cellAt(x, y);
+    if (!drag.active) {
+      const far = Math.hypot(x - drag.startX, y - drag.startY) > DRAG_START_PX;
+      const left = !cell || cell.x !== drag.boxX || cell.y !== drag.boxY;
+      if (!far && !left) return;
+      drag.active = true;
+    }
+    if (!cell) {
+      drag.target = null;
+    } else if (!drag.target || drag.target.x !== cell.x || drag.target.y !== cell.y) {
+      const route = findBoxRoute(currentLevel.state, drag.boxX, drag.boxY, cell.x, cell.y);
+      drag.target = { x: cell.x, y: cell.y, route };
+    }
+  });
+
+  function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const d = drag;
+    drag = null;
+    if (cancelled || screen !== SCREEN.PLAY || !currentLevel) return;
+    if (!d.active) {
+      // A short tap: push once if the box is next to the worker, otherwise
+      // the usual tap behaviour for that cell.
+      const { x, y } = canvasPoint(e);
+      handlePlayClick(x, y);
+      return;
+    }
+    const t = d.target;
+    if (!t) return;
+    if (t.x === d.boxX && t.y === d.boxY) return; // dropped back where it was
+    if (t.route) startWalk(t.route);
+    else signalBlocked(t.x, t.y);
+  }
+
+  canvas.addEventListener('pointerup', (e) => endDrag(e, false));
+  canvas.addEventListener('pointercancel', (e) => endDrag(e, true));
+  window.addEventListener('keydown', (e) => {
+    if (drag && e.key === 'Escape') drag = null;
   });
 
   canvas.addEventListener('click', (e) => {
@@ -322,6 +388,20 @@
     ctx.clip();
     ctx.fillStyle = `rgba(220, 50, 40, ${0.55 * (left / BLOCKED_FLASH_MS)})`;
     ctx.fillRect(offsetX + blockedFlash.x * ts, offsetY + blockedFlash.y * ts, ts, ts);
+    ctx.restore();
+  }
+
+  function renderDragHighlight() {
+    if (!drag || !drag.active || !drag.target) return;
+    const boardH = viewH - HUD_HEIGHT;
+    const { ts, offsetX, offsetY } = computeViewTransform(currentLevel.state, viewW, boardH);
+    const { x, y, route } = drag.target;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, viewW, boardH);
+    ctx.clip();
+    ctx.fillStyle = route ? 'rgba(60, 190, 90, 0.45)' : 'rgba(220, 50, 40, 0.45)';
+    ctx.fillRect(offsetX + x * ts, offsetY + y * ts, ts, ts);
     ctx.restore();
   }
 
@@ -435,6 +515,7 @@
       renderKeypad(ctx, selectedFloor);
     } else if (screen === SCREEN.PLAY) {
       renderLevel(ctx, currentLevel.state, currentLevel.floor, moves, pushes, elapsedMs());
+      renderDragHighlight();
       renderBlockedFlash();
     } else if (screen === SCREEN.COMPLETE) {
       // The solved board stays visible under the win card, frozen at the

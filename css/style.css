@@ -555,7 +555,7 @@ button svg .ico-fill {
   width: 100%;
   height: 100%;
   background: var(--bt-walnut-900);
-  touch-action: manipulation;
+  touch-action: none; /* a finger drag moves a box instead of scrolling */
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
