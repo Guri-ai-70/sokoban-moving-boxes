@@ -183,6 +183,7 @@
 
   window.addEventListener('keydown', (e) => {
     if (window.SokobanSettings && window.SokobanSettings.isOpen()) return;
+    if (window.SokobanHelp && window.SokobanHelp.isOpen()) return;
     ensureAudio();
     if (screen === SCREEN.LOBBY) {
       callElevator();
@@ -477,6 +478,12 @@
   // tap sound).
   onButton(document.getElementById('btn-settings'), () => {});
   onButton(document.getElementById('settings-done'), () => {});
+
+  // How to play panel (js/help.js owns its behaviour; this only adds the
+  // tap sound).
+  for (const id of ['btn-help', 'help-done', 'help-close']) {
+    onButton(document.getElementById(id), () => {});
+  }
   window.SokobanSettings.onOptionChosen(() => {
     ensureAudio();
     audio.playClick();

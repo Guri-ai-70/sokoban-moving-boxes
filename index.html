@@ -7,13 +7,17 @@
   <title>Sokoban - Moving Boxes</title>
   <!-- ?v= is a cache-buster: bump it whenever any css/js file changes, so
        browsers (GitHub Pages, phones) never mix old and new files. -->
-  <link rel="stylesheet" href="css/style.css?v=20261036" />
+  <link rel="stylesheet" href="css/style.css?v=20261037" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <p class="brand">Sokoban <span>Moving Boxes</span></p>
       <div class="topbar-actions" id="topbar-actions">
+        <button type="button" class="tb-btn" id="btn-help" aria-label="How to play" aria-haspopup="dialog" aria-controls="help" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4.2M12 17.6v.1"/></svg>
+          <span class="tb-label">How to play</span>
+        </button>
         <button type="button" class="tb-btn" id="btn-settings" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
@@ -67,14 +71,38 @@
     </div>
   </div>
 
-  <script src="js/engine.js?v=20261036"></script>
-  <script src="js/levels.js?v=20261036"></script>
-  <script src="js/storage.js?v=20261036"></script>
-  <script src="js/hud.js?v=20261036"></script>
-  <script src="js/audio.js?v=20261036"></script>
-  <script src="js/render.js?v=20261036"></script>
-  <script src="js/keypad.js?v=20261036"></script>
-  <script src="js/settings.js?v=20261036"></script>
-  <script src="js/main.js?v=20261036"></script>
+  <div class="overlay" id="help-overlay" hidden>
+    <div class="panel panel-help" id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" tabindex="-1">
+      <div class="panel-head">
+        <h2 id="help-title">How to play</h2>
+        <button type="button" class="panel-x" id="help-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <dl class="help-list">
+        <div><dt>Goal</dt><dd>Push every box onto a circle.</dd></div>
+        <div><dt>Move</dt><dd>Arrow keys or WASD, or the on-screen arrows. Hold a key or arrow to repeat.</dd></div>
+        <div><dt>Walk</dt><dd>Click or tap a free cell and the worker walks there.</dd></div>
+        <div><dt>Push once</dt><dd>Tap a box right next to the worker.</dd></div>
+        <div><dt>Move a box</dt><dd>Drag a box to a cell. The worker walks over and pushes it there.</dd></div>
+        <div><dt>Undo</dt><dd>Undo button, U, Backspace, or right-click. A walk or a box move undoes in one step.</dd></div>
+        <div><dt>Restart</dt><dd>Restart button or R.</dd></div>
+        <div><dt>Sound</dt><dd>The Muted / Sound on button in the top bar.</dd></div>
+        <div><dt>Colors</dt><dd>Red flash: you can't move there. While dragging a box, the cell under your finger is green if the box can get there, red if not.</dd></div>
+      </dl>
+      <button type="button" class="ctl panel-done" id="help-done">Got it</button>
+    </div>
+  </div>
+
+  <script src="js/engine.js?v=20261037"></script>
+  <script src="js/levels.js?v=20261037"></script>
+  <script src="js/storage.js?v=20261037"></script>
+  <script src="js/hud.js?v=20261037"></script>
+  <script src="js/audio.js?v=20261037"></script>
+  <script src="js/render.js?v=20261037"></script>
+  <script src="js/keypad.js?v=20261037"></script>
+  <script src="js/settings.js?v=20261037"></script>
+  <script src="js/help.js?v=20261037"></script>
+  <script src="js/main.js?v=20261037"></script>
 </body>
 </html>

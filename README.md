@@ -15,12 +15,17 @@ Keyboard:
 - `R`: restart the current level
 - `U` or Backspace: undo the last move
 - Clicking a tile right next to the bellhop moves there; right-click undoes
+- Clicking a free tile walks there; dragging a box to a tile walks the
+  bellhop over and pushes it there by the route with the fewest pushes
+  (green tile = reachable, red = not). A walk or box move undoes in one step.
 
 Touch / on-screen buttons (shown while playing a floor):
-- Arrow buttons: move
+- Arrow buttons: move (hold to repeat)
 - Undo and Restart buttons
 
 Top bar:
+- ? How to play: a short guide to the controls. Opens by itself on the
+  first visit only (remembered in the browser); `Esc` closes it.
 - Gear: settings - colour theme (Brass & Terrazzo, Chrome & Marble,
   Copper & Slate, Jade & Ivory) and crate style (Oak crate, Parcel,
   Steamer trunk). Saved in the browser.

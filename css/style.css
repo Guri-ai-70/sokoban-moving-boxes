@@ -253,6 +253,19 @@ button svg .ico-fill {
   justify-content: center;
 }
 
+/* Phones: How to play shows only its ? icon, as a square plate. */
+@media (max-width: 600px) {
+  #btn-help {
+    padding: 0;
+    width: 48px;
+    justify-content: center;
+  }
+
+  #btn-help .tb-label {
+    display: none;
+  }
+}
+
 /* ---------- Settings panel (shown/hidden instantly, no animation) ---------- */
 .overlay {
   position: fixed;
@@ -378,6 +391,64 @@ button svg .ico-fill {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+/* How to play panel */
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panel-head h2 {
+  margin: 0;
+  align-self: center;
+}
+
+.panel-x {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px -8px 0 0;
+  border: 2px solid var(--bt-walnut-500);
+  border-radius: 4px;
+  background: var(--bt-walnut-900);
+  color: var(--bt-brass-300);
+}
+
+.panel-x:active {
+  background: var(--bt-walnut-500);
+}
+
+.help-list {
+  margin: 0 0 18px;
+}
+
+.help-list > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--bt-walnut-500);
+}
+
+.help-list dt {
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bt-brass-300);
+}
+
+.help-list dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .panel-done {
